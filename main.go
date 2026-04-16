@@ -13,6 +13,7 @@ func main() {
 		Use:   "llmwiki",
 		Short: "LLM-maintained knowledge base for your projects",
 	}
+	root.SilenceErrors = true
 	root.AddCommand(
 		cmd.NewIngestCmd(),
 		cmd.NewQueryCmd(),

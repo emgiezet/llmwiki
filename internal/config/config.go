@@ -1,6 +1,8 @@
 package config
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -32,14 +34,22 @@ type Merged struct {
 	Type            string
 }
 
+func homeDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = os.Getenv("HOME")
+	}
+	return home
+}
+
 func LoadGlobalConfig(path string) (GlobalConfig, error) {
 	cfg := GlobalConfig{
 		LLM:        "claude-code",
 		OllamaHost: "http://localhost:11434",
-		WikiRoot:   filepath.Join(os.Getenv("HOME"), "llmwiki", "wiki"),
+		WikiRoot:   filepath.Join(homeDir(), "llmwiki", "wiki"),
 	}
 	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
+	if errors.Is(err, fs.ErrNotExist) {
 		return cfg, nil
 	}
 	if err != nil {
@@ -51,7 +61,7 @@ func LoadGlobalConfig(path string) (GlobalConfig, error) {
 func LoadProjectConfig(projectDir string) (ProjectConfig, error) {
 	var cfg ProjectConfig
 	data, err := os.ReadFile(filepath.Join(projectDir, "llmwiki.yaml"))
-	if os.IsNotExist(err) {
+	if errors.Is(err, fs.ErrNotExist) {
 		return cfg, nil
 	}
 	if err != nil {
@@ -78,5 +88,5 @@ func Merge(g GlobalConfig, p ProjectConfig) Merged {
 
 // DefaultGlobalConfigPath returns ~/.llmwiki/config.yaml
 func DefaultGlobalConfigPath() string {
-	return filepath.Join(os.Getenv("HOME"), ".llmwiki", "config.yaml")
+	return filepath.Join(homeDir(), ".llmwiki", "config.yaml")
 }

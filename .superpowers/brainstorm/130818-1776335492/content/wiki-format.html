@@ -1,0 +1,64 @@
+<h2>Wiki Entry Format</h2>
+<p class="subtitle">YAML front matter for metadata · freeform LLM-written sections below</p>
+
+<div class="section">
+  <div style="display: flex; gap: 20px;">
+
+    <!-- Front matter -->
+    <div style="flex: 1;">
+      <div class="label">YAML Front Matter (structured metadata)</div>
+      <div style="font-family: monospace; font-size: 12px; line-height: 1.7; background: #1a1a2e; color: #e0e0e0; padding: 18px 20px; border-radius: 10px; border: 1px solid #333; margin-top: 8px;">
+        <span style="color: #888;">---</span><br>
+        <span style="color: #ce93d8;">name</span><span style="color: #888;">:</span> <span style="color: #a5d6a7;">project-x</span><br>
+        <span style="color: #ce93d8;">customer</span><span style="color: #888;">:</span> <span style="color: #a5d6a7;">insly</span><br>
+        <span style="color: #ce93d8;">type</span><span style="color: #888;">:</span> <span style="color: #a5d6a7;">client</span> <span style="color: #555;"># client | personal | oss</span><br>
+        <span style="color: #ce93d8;">status</span><span style="color: #888;">:</span> <span style="color: #a5d6a7;">active</span> <span style="color: #555;"># active | paused | archived</span><br>
+        <span style="color: #ce93d8;">path</span><span style="color: #888;">:</span> <span style="color: #a5d6a7;">/home/mgz/workspace/project-x</span><br>
+        <span style="color: #ce93d8;">llm</span><span style="color: #888;">:</span> <span style="color: #a5d6a7;">claude</span> <span style="color: #555;"># claude | ollama</span><br>
+        <span style="color: #ce93d8;">ollama_model</span><span style="color: #888;">:</span> <span style="color: #555;">null</span> <span style="color: #555;"># e.g. llama3.2</span><br>
+        <span style="color: #ce93d8;">tags</span><span style="color: #888;">:</span> <span style="color: #a5d6a7;">[go, grpc, insurance]</span><br>
+        <span style="color: #ce93d8;">last_ingested</span><span style="color: #888;">:</span> <span style="color: #a5d6a7;">2026-04-16T10:00:00Z</span><br>
+        <span style="color: #888;">---</span>
+      </div>
+    </div>
+
+    <!-- LLM sections -->
+    <div style="flex: 1.3;">
+      <div class="label">LLM-written sections</div>
+      <div style="font-family: monospace; font-size: 12px; line-height: 1.7; background: #1a1a2e; color: #e0e0e0; padding: 18px 20px; border-radius: 10px; border: 1px solid #333; margin-top: 8px;">
+        <span style="color: #64b5f6; font-weight: bold;"># project-x</span><br><br>
+        <span style="color: #ffb74d;">## Domain</span><br>
+        <span style="color: #ccc; font-size: 11px;">Insurance platform handling policy lifecycle,</span><br>
+        <span style="color: #ccc; font-size: 11px;">claims, and broker integrations...</span><br><br>
+        <span style="color: #ffb74d;">## Services</span><br>
+        <span style="color: #ccc; font-size: 11px;">- <span style="color: #a5d6a7;">api-gateway</span> — REST + gRPC, routes to services</span><br>
+        <span style="color: #ccc; font-size: 11px;">- <span style="color: #a5d6a7;">policy-service</span> — core business logic</span><br>
+        <span style="color: #ccc; font-size: 11px;">- <span style="color: #a5d6a7;">document-service</span> — PDF generation</span><br><br>
+        <span style="color: #ffb74d;">## Flows</span><br>
+        <span style="color: #ccc; font-size: 11px;">Policy creation: broker → api-gateway →</span><br>
+        <span style="color: #ccc; font-size: 11px;">policy-service → document-service → email</span><br><br>
+        <span style="color: #ffb74d;">## Integrations</span><br>
+        <span style="color: #ccc; font-size: 11px;">- Stripe (payments), SendGrid (email)</span><br>
+        <span style="color: #ccc; font-size: 11px;">- WireMock (test doubles)</span><br><br>
+        <span style="color: #ffb74d;">## Tech Stack</span><br>
+        <span style="color: #ccc; font-size: 11px;">Go 1.22, gRPC, Postgres, Redis, Docker</span><br><br>
+        <span style="color: #ffb74d;">## Notes</span><br>
+        <span style="color: #ccc; font-size: 11px;">Free-form: gotchas, decisions, context...</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Directory layout</div>
+  <div style="font-family: monospace; font-size: 12px; line-height: 1.8; background: #1a1a2e; color: #ccc; padding: 16px 20px; border-radius: 10px; border: 1px solid #333; margin-top: 8px;">
+    <span style="color: #90caf9;">llmwiki/wiki/</span><br>
+    <span style="margin-left: 20px;">├── <span style="color: #ce93d8;">clients/</span></span><br>
+    <span style="margin-left: 40px;">├── insly/ → mmx3.md, project-x.md</span><br>
+    <span style="margin-left: 40px;">└── acme/ → billing-api.md</span><br>
+    <span style="margin-left: 20px;">├── <span style="color: #ce93d8;">personal/</span> → llmwiki.md, homelab.md</span><br>
+    <span style="margin-left: 20px;">├── <span style="color: #ce93d8;">opensource/</span> → some-lib.md</span><br>
+    <span style="margin-left: 20px;">└── <span style="color: #a5d6a7;">_index.md</span> — master overview, all projects listed</span>
+  </div>
+</div>

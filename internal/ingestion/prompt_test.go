@@ -13,6 +13,9 @@ func TestBuildProjectPrompt_IncludesScan(t *testing.T) {
 	assert.Contains(t, prompt, "## Domain")
 	assert.Contains(t, prompt, "## Services")
 	assert.Contains(t, prompt, "## Flows")
+	assert.Contains(t, prompt, "## Integrations")
+	assert.Contains(t, prompt, "## Tech Stack")
+	assert.Contains(t, prompt, "## Notes")
 }
 
 func TestBuildProjectPrompt_IncludesExisting(t *testing.T) {
@@ -28,4 +31,6 @@ func TestBuildServicePrompt_IncludesScan(t *testing.T) {
 	assert.Contains(t, prompt, "## Purpose")
 	assert.Contains(t, prompt, "## API Surface")
 	assert.Contains(t, prompt, "api-gateway")
+	assert.Contains(t, prompt, "## Integrations")
+	assert.Contains(t, prompt, "## Notes")
 }

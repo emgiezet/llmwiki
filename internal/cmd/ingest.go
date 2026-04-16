@@ -64,7 +64,7 @@ func NewIngestCmd() *cobra.Command {
 					return fmt.Errorf("scan service: %w", scanErr)
 				}
 
-				wikiPath := filepath.Join(cfg.WikiRoot, cfg.Type+"s", cfg.Customer, projectName, service+".md")
+				wikiPath := filepath.Join(cfg.WikiRoot, ingestion.TypeToDir(cfg.Type), cfg.Customer, projectName, service+".md")
 				var existingBody string
 				if data, readErr := os.ReadFile(wikiPath); readErr == nil {
 					if entry, parseErr := wiki.ParseServiceEntry(data); parseErr == nil {

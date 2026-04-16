@@ -92,7 +92,7 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 		}
 	}
 
-	indexPath := filepath.Join(cfg.WikiRoot, cfg.Type+"s", cfg.Customer, projectName, "_index.md")
+	indexPath := filepath.Join(cfg.WikiRoot, TypeToDir(cfg.Type), cfg.Customer, projectName, "_index.md")
 	relPath, _ := filepath.Rel(cfg.WikiRoot, indexPath)
 	return wiki.UpsertIndex(filepath.Join(cfg.WikiRoot, "_index.md"), wiki.IndexEntry{
 		Name:     projectName,
@@ -103,9 +103,22 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 	})
 }
 
+// TypeToDir maps project type to wiki directory name.
+// personal and opensource don't follow the simple "type+s" pattern.
+func TypeToDir(projectType string) string {
+	switch projectType {
+	case "personal":
+		return "personal"
+	case "oss":
+		return "opensource"
+	default:
+		return projectType + "s" // "client" → "clients"
+	}
+}
+
 // wikiFilePath returns the absolute path for a wiki entry.
 func wikiFilePath(wikiRoot, projectType, customer, project, service string) string {
-	typeDir := projectType + "s" // "client" → "clients"
+	typeDir := TypeToDir(projectType)
 	if service == "" {
 		return filepath.Join(wikiRoot, typeDir, customer, project+".md")
 	}

@@ -49,6 +49,9 @@ func TestDetectServices_FromDockerCompose(t *testing.T) {
     image: go-service
 `
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-compose.yml"), []byte(compose), 0644))
+	// Create service subdirectories so they are detected
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "api-gateway"), 0755))
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "policy-service"), 0755))
 
 	services, err := scanner.DetectServices(dir)
 	require.NoError(t, err)

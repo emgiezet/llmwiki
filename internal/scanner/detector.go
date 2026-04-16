@@ -3,6 +3,7 @@ package scanner
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -61,10 +62,11 @@ func servicesFromCompose(path string) ([]ServiceDir, error) {
 		subdir := filepath.Join(dir, name)
 		if _, err := os.Stat(subdir); err == nil {
 			result = append(result, ServiceDir{Name: name, Path: subdir})
-		} else {
-			result = append(result, ServiceDir{Name: name, Path: dir})
 		}
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name < result[j].Name
+	})
 	return result, nil
 }
 

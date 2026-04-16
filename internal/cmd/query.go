@@ -1,6 +1,15 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/mgz/llmwiki/internal/config"
+	"github.com/mgz/llmwiki/internal/llm"
+	"github.com/spf13/cobra"
+)
 
 func NewQueryCmd() *cobra.Command {
 	return &cobra.Command{
@@ -8,7 +17,73 @@ func NewQueryCmd() *cobra.Command {
 		Short: "Ask a question across all wiki entries",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			question := args[0]
+			global, err := config.LoadGlobalConfig(config.DefaultGlobalConfigPath())
+			if err != nil {
+				return err
+			}
+
+			wikiContent, err := loadAllWikiContent(global.WikiRoot)
+			if err != nil {
+				return err
+			}
+			if wikiContent == "" {
+				fmt.Println("No wiki entries found. Run: llmwiki ingest <path>")
+				return nil
+			}
+
+			if global.AnthropicAPIKey == "" {
+				global.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")
+			}
+			l, err := llm.NewLLM(llm.Config{
+				Backend:         global.LLM,
+				AnthropicAPIKey: global.AnthropicAPIKey,
+				OllamaHost:      global.OllamaHost,
+			})
+			if err != nil {
+				return err
+			}
+
+			prompt := fmt.Sprintf(`You are answering a question about a collection of software projects.
+Use only the wiki content below to answer. Be concise.
+
+WIKI CONTENT:
+%s
+
+QUESTION: %s
+
+Answer:`, wikiContent, question)
+
+			answer, err := l.Generate(cmd.Context(), prompt)
+			if err != nil {
+				return err
+			}
+			fmt.Println(answer)
 			return nil
 		},
 	}
+}
+
+func loadAllWikiContent(wikiRoot string) (string, error) {
+	var parts []string
+	err := filepath.WalkDir(wikiRoot, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(path, ".md") || strings.HasSuffix(path, "_index.md") {
+			return nil
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+		rel, _ := filepath.Rel(wikiRoot, path)
+		content := string(data)
+		if len(content) > 3000 {
+			content = content[:3000] + "\n[truncated]"
+		}
+		parts = append(parts, fmt.Sprintf("=== %s ===\n%s", rel, content))
+		return nil
+	})
+	return strings.Join(parts, "\n\n"), err
 }

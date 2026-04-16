@@ -32,3 +32,15 @@ func TestNewLLM_ClaudeCodeBackend(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, l)
 }
+
+func TestNewLLM_ClaudeAPIBackend_MissingKey(t *testing.T) {
+	_, err := llm.NewLLM(llm.Config{Backend: "claude-api", AnthropicAPIKey: ""})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "ANTHROPIC_API_KEY")
+}
+
+func TestNewLLM_ClaudeAPIBackend_WithKey(t *testing.T) {
+	l, err := llm.NewLLM(llm.Config{Backend: "claude-api", AnthropicAPIKey: "sk-test"})
+	require.NoError(t, err)
+	assert.NotNil(t, l)
+}

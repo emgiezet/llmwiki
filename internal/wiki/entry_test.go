@@ -93,3 +93,55 @@ Routes traffic.
 	assert.Equal(t, []string{"REST :8080", "gRPC :9090"}, entry.Meta.Exposes)
 	assert.Contains(t, entry.Body, "## Purpose")
 }
+
+func TestWriteReadIndex(t *testing.T) {
+	dir := t.TempDir()
+	indexPath := filepath.Join(dir, "_index.md")
+
+	entries := []wiki.IndexEntry{
+		{Name: "mmx3", Customer: "insly", Type: "client", Status: "active", WikiPath: "clients/insly/mmx3/_index.md"},
+		{Name: "llmwiki", Customer: "", Type: "personal", Status: "active", WikiPath: "personal/llmwiki.md"},
+	}
+
+	require.NoError(t, wiki.WriteIndex(indexPath, entries))
+
+	data, err := os.ReadFile(indexPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "mmx3")
+	assert.Contains(t, string(data), "insly")
+	assert.Contains(t, string(data), "personal")
+
+	readEntries, err := wiki.ReadIndex(indexPath)
+	require.NoError(t, err)
+	assert.Len(t, readEntries, 2)
+	assert.Equal(t, "mmx3", readEntries[0].Name)
+}
+
+func TestUpsertIndex_AddsNew(t *testing.T) {
+	dir := t.TempDir()
+	indexPath := filepath.Join(dir, "_index.md")
+
+	require.NoError(t, wiki.UpsertIndex(indexPath, wiki.IndexEntry{
+		Name: "project-a", Type: "client", Customer: "acme", Status: "active", WikiPath: "clients/acme/project-a.md",
+	}))
+	require.NoError(t, wiki.UpsertIndex(indexPath, wiki.IndexEntry{
+		Name: "project-b", Type: "personal", Status: "active", WikiPath: "personal/project-b.md",
+	}))
+
+	entries, err := wiki.ReadIndex(indexPath)
+	require.NoError(t, err)
+	assert.Len(t, entries, 2)
+}
+
+func TestUpsertIndex_UpdatesExisting(t *testing.T) {
+	dir := t.TempDir()
+	indexPath := filepath.Join(dir, "_index.md")
+
+	require.NoError(t, wiki.UpsertIndex(indexPath, wiki.IndexEntry{Name: "proj", Type: "client", Customer: "acme", Status: "active", WikiPath: "clients/acme/proj.md"}))
+	require.NoError(t, wiki.UpsertIndex(indexPath, wiki.IndexEntry{Name: "proj", Type: "client", Customer: "acme", Status: "archived", WikiPath: "clients/acme/proj.md"}))
+
+	entries, err := wiki.ReadIndex(indexPath)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "archived", entries[0].Status)
+}

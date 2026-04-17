@@ -9,6 +9,7 @@ import (
 	"github.com/mgz/llmwiki/internal/config"
 	"github.com/mgz/llmwiki/internal/ingestion"
 	"github.com/mgz/llmwiki/internal/llm"
+	"github.com/mgz/llmwiki/internal/wiki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +21,7 @@ func TestIngestProject_SingleService(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "README.md"), []byte("# My App\nDoes insurance things."), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "go.mod"), []byte("module example.com/myapp\n"), 0644))
 
-	fakeLLM := llm.NewFakeLLM("## Domain\nInsurance app.\n\n## Services\n- api: main service\n\n## Flows\nuser → api\n\n## Integrations\nPostgres\n\n## Tech Stack\nGo\n\n## Notes\nNone.")
+	fakeLLM := llm.NewFakeLLM("## Domain\nInsurance app.\n\n## Architecture\nMonolith.\n\n## Services\n- api: main service\n\n## Features\nQuote management.\n\n## Flows\nuser → api\n\n## Integrations\nPostgres\n\n## Tech Stack\nGo\n\n## Configuration\nPORT=8080\n\n## Notes\nNone.\n\n## Tags\ngo, rest, postgres")
 
 	cfg := config.Merged{
 		WikiRoot: wikiRoot,
@@ -38,6 +39,11 @@ func TestIngestProject_SingleService(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "## Domain")
 	assert.Contains(t, string(data), "Insurance app.")
+	assert.NotContains(t, string(data), "## Tags")
+
+	entry, parseErr := wiki.ParseProjectEntry(data)
+	require.NoError(t, parseErr)
+	assert.Equal(t, []string{"go", "rest", "postgres"}, entry.Meta.Tags)
 
 	// Index updated
 	indexData, err := os.ReadFile(filepath.Join(wikiRoot, "_index.md"))
@@ -60,7 +66,7 @@ func TestIngestProject_MultiService(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(svcDir, "go.mod"), []byte("module example.com/"+svc+"\n"), 0644))
 	}
 
-	fakeBody := "## Purpose\nDoes stuff.\n\n## API Surface\nNone.\n\n## Integrations\nNone.\n\n## Notes\nNone."
+	fakeBody := "## Purpose\nDoes stuff.\n\n## Architecture\nSimple.\n\n## API Surface\nNone.\n\n## Data Model\nNone.\n\n## Integrations\nNone.\n\n## Configuration\nNone.\n\n## Notes\nNone.\n\n## Tags\ngo, grpc"
 	fakeLLM := llm.NewFakeLLM(fakeBody)
 
 	cfg := config.Merged{WikiRoot: wikiRoot, LLM: "claude-code", Customer: "insly", Type: "client"}
@@ -74,5 +80,10 @@ func TestIngestProject_MultiService(t *testing.T) {
 		data, err := os.ReadFile(wikiFile)
 		require.NoError(t, err)
 		assert.Contains(t, string(data), "## Purpose")
+		assert.NotContains(t, string(data), "## Tags")
+
+		svcEntry, parseErr := wiki.ParseServiceEntry(data)
+		require.NoError(t, parseErr)
+		assert.Equal(t, []string{"go", "grpc"}, svcEntry.Meta.Tags)
 	}
 }

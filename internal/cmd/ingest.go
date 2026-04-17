@@ -77,11 +77,13 @@ func NewIngestCmd() *cobra.Command {
 				if genErr != nil {
 					return genErr
 				}
+				tags, body := ingestion.ParseTagsFromBody(body)
 				meta := wiki.ServiceMeta{
 					Service:      service,
 					Project:      projectName,
 					Customer:     cfg.Customer,
 					Path:         serviceDir,
+					Tags:         tags,
 					LastIngested: time.Now().UTC(),
 				}
 				if writeErr := wiki.WriteServiceEntry(wikiPath, meta, "\n"+body+"\n"); writeErr != nil {

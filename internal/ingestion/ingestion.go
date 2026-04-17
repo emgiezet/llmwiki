@@ -39,6 +39,7 @@ func ingestSingleService(ctx context.Context, projectDir, projectName string, cf
 	if err != nil {
 		return err
 	}
+	tags, body := ParseTagsFromBody(body)
 
 	meta := wiki.ProjectMeta{
 		Name:         projectName,
@@ -48,6 +49,7 @@ func ingestSingleService(ctx context.Context, projectDir, projectName string, cf
 		Path:         projectDir,
 		LLM:          cfg.LLM,
 		OllamaModel:  cfg.OllamaModel,
+		Tags:         tags,
 		LastIngested: time.Now().UTC(),
 	}
 	if err := wiki.WriteProjectEntry(wikiPath, meta, "\n"+body+"\n"); err != nil {
@@ -79,12 +81,14 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 		if err != nil {
 			return err
 		}
+		tags, body := ParseTagsFromBody(body)
 
 		meta := wiki.ServiceMeta{
 			Service:      svc.Name,
 			Project:      projectName,
 			Customer:     cfg.Customer,
 			Path:         svc.Path,
+			Tags:         tags,
 			LastIngested: time.Now().UTC(),
 		}
 		if err := wiki.WriteServiceEntry(wikiPath, meta, "\n"+body+"\n"); err != nil {

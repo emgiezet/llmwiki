@@ -32,6 +32,7 @@ type ServiceMeta struct {
 	Path         string    `yaml:"path,omitempty"`
 	Exposes      []string  `yaml:"exposes,omitempty"`
 	DependsOn    []string  `yaml:"depends_on,omitempty"`
+	Tags         []string  `yaml:"tags,omitempty"`
 	LastIngested time.Time `yaml:"last_ingested"`
 }
 

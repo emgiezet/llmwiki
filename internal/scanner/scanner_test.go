@@ -3,6 +3,7 @@ package scanner_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mgz/llmwiki/internal/scanner"
@@ -81,4 +82,88 @@ func TestScanService_CollectsProto(t *testing.T) {
 	result, err := scanner.ScanProject(svcDir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "service.proto")
+}
+
+func TestScanProject_CollectsMainGo(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.go"),
+		[]byte("package main\nfunc main() {}"), 0644))
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+	assert.Contains(t, result.Summary, "main.go")
+}
+
+func TestScanProject_CollectsDockerfile(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Dockerfile"),
+		[]byte("FROM golang:1.23\nEXPOSE 8080"), 0644))
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+	assert.Contains(t, result.Summary, "Dockerfile")
+}
+
+func TestScanProject_CollectsCLAUDEmd(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "CLAUDE.md"),
+		[]byte("# Project context for Claude"), 0644))
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+	assert.Contains(t, result.Summary, "CLAUDE.md")
+}
+
+func TestScanProject_CollectsCmdMainGo(t *testing.T) {
+	dir := t.TempDir()
+	cmdDir := filepath.Join(dir, "cmd", "server")
+	require.NoError(t, os.MkdirAll(cmdDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(cmdDir, "main.go"),
+		[]byte("package main\nfunc main() { serve() }"), 0644))
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+	assert.Contains(t, result.Summary, "cmd/server/main.go")
+}
+
+func TestScanProject_HighValueFilesGetMoreChars(t *testing.T) {
+	dir := t.TempDir()
+	bigContent := strings.Repeat("x", 7000)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "CLAUDE.md"),
+		[]byte(bigContent), 0644))
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+	assert.NotContains(t, result.Summary, "[truncated]")
+}
+
+func TestScanProject_IncludesDirectoryTree(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "cmd", "server"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "internal", "api"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main"), 0644))
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+	assert.Contains(t, result.Summary, "DIRECTORY STRUCTURE")
+	assert.Contains(t, result.Summary, "cmd/")
+	assert.Contains(t, result.Summary, "internal/")
+}
+
+func TestScanDirectoryTree_RespectsMaxDepth(t *testing.T) {
+	dir := t.TempDir()
+	deep := filepath.Join(dir, "a", "b", "c", "d")
+	require.NoError(t, os.MkdirAll(deep, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(deep, "file.go"), []byte("package d"), 0644))
+
+	tree, err := scanner.ScanDirectoryTree(dir, 2)
+	require.NoError(t, err)
+	assert.Contains(t, tree, "a/")
+	assert.Contains(t, tree, "b/")
+	assert.NotContains(t, tree, "d/")
+}
+
+func TestScanDirectoryTree_SkipsDirs(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "node_modules", "pkg"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "src"), 0755))
+
+	tree, err := scanner.ScanDirectoryTree(dir, 3)
+	require.NoError(t, err)
+	assert.NotContains(t, tree, "node_modules")
+	assert.Contains(t, tree, "src/")
 }

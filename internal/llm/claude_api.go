@@ -18,7 +18,7 @@ func NewClaudeAPILLM(apiKey string) LLM {
 func (l *ClaudeAPILLM) Generate(ctx context.Context, prompt string) (string, error) {
 	msg, err := l.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaudeSonnet4_6,
-		MaxTokens: 4096,
+		MaxTokens: 8192,
 		Messages: []anthropic.MessageParam{
 			anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
 		},

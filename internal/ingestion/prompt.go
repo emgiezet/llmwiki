@@ -36,6 +36,12 @@ PROJECT SCAN (files collected from the project directory):
 ## Flows
 (Key end-to-end workflows. For each flow: describe the trigger, the path through services/components, data transformations, and terminal state. Use arrows: "A → B → C". Include async flows and error-handling paths where visible.)
 
+## System Diagram
+(Mermaid flowchart showing all services/components and external integrations. Output a mermaid code block using flowchart TD or LR. Label edges with protocols. Include databases, queues, and external APIs as nodes. Do not use subgraphs unless there are clear bounded contexts.)
+
+## Data Model Diagram
+(Mermaid erDiagram showing key database entities and their relationships. Output a mermaid code block. Include entity names, key attributes, and relationship cardinality. If no database schema is visible from the scan data, write "No database schema detected in scan data." instead of a diagram.)
+
 ## Integrations
 (External systems this project connects to. For each: name, protocol (HTTP/gRPC/AMQP/SQL), purpose, authentication method if visible, and failure behavior if documented. Group by: databases, message queues, external APIs, observability.)
 
@@ -81,10 +87,16 @@ SERVICE SCAN (files from the service directory):
 (Internal structure: key packages/modules, design patterns used, runtime modes, concurrency model if visible. How the code is organized and why.)
 
 ## API Surface
-(All exposed interfaces. For HTTP: list routes with methods and purpose. For gRPC: list services and key RPCs. For message consumers: list queue/topic names and message types. Include request/response shapes where visible from proto definitions or swagger specs.)
+(All exposed interfaces. IMPORTANT: If swagger/openapi spec data appears in the scan above, extract EVERY endpoint — list method, path, summary, and key parameters as a markdown table: | Method | Path | Description |. For gRPC: list all services and RPCs with request/response message types. For message consumers: list queue/topic names and message types. Be exhaustive — this is the API reference.)
+
+## System Diagram
+(Mermaid flowchart showing this service's connections: upstream callers, downstream dependencies, databases, queues, and external APIs. Output a mermaid code block using flowchart LR. Label edges with protocols and methods.)
 
 ## Data Model
 (Key domain entities and their relationships. Database tables or collections if visible from migrations or ORM definitions. Storage technology and access patterns.)
+
+## Data Model Diagram
+(Mermaid erDiagram showing this service's database entities and their relationships. Output a mermaid code block. If no database schema is visible from the scan data, write "No database schema detected in scan data." instead of a diagram.)
 
 ## Integrations
 (Upstream: what calls this service, and how. Downstream: what this service calls, protocol, purpose, failure handling. For each integration: name, protocol, direction, purpose.)

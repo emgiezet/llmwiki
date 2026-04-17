@@ -90,12 +90,16 @@ func buildContextOutput(wikiRoot, projectName, service string) (string, error) {
 	return "", fmt.Errorf("project %q not found in wiki. Run: llmwiki ingest <path>", projectName)
 }
 
+// extractProjectSections returns the key sections for CLAUDE.md injection.
+// Intentionally excludes: System Diagram, Data Model Diagram, Tags (too verbose for context injection).
 func extractProjectSections(body string) string {
-	return extractSections(body, []string{"## Domain", "## Services", "## Flows"})
+	return extractSections(body, []string{"## Domain", "## Architecture", "## Services", "## Features", "## Flows"})
 }
 
+// extractServiceSections returns the key sections for CLAUDE.md injection.
+// Intentionally excludes: System Diagram, Data Model Diagram, Tags (too verbose for context injection).
 func extractServiceSections(body string) string {
-	return extractSections(body, []string{"## Purpose", "## API Surface", "## Integrations"})
+	return extractSections(body, []string{"## Purpose", "## Architecture", "## API Surface", "## Integrations"})
 }
 
 func extractSections(body string, keep []string) string {

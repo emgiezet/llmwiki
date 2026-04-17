@@ -75,11 +75,11 @@ llmwiki ingest ~/workspace/my-api --service api-gateway  # refresh one service o
 Lists all tracked projects with their customer, type, status, and wiki path.
 
 ```
-PROJECT            CUSTOMER      TYPE      STATUS  WIKI
--------            --------      ----      ------  ----
-qmt-api            insly         client    active  clients/insly/qmt-api.md
-cs2                circusstreet  client    active  clients/circusstreet/cs2/_index.md
-llmwiki                          personal  active  personal/llmwiki.md
+PROJECT            CUSTOMER  TYPE      STATUS  WIKI
+-------            --------  ----      ------  ----
+billing-api        acme      client    active  clients/acme/billing-api.md
+ecommerce          acme      client    active  clients/acme/ecommerce/_index.md
+my-tool                      personal  active  personal/my-tool.md
 ```
 
 ### `context <project>`
@@ -113,7 +113,7 @@ llmwiki query "which services use gRPC?"
 Generates or regenerates client-level and project-level index files without re-ingesting source code. Useful after ingesting multiple projects over time.
 
 ```bash
-llmwiki index insly          # regenerate insly client index
+llmwiki index acme           # regenerate acme client index
 llmwiki index                # regenerate all client indexes
 ```
 
@@ -135,20 +135,24 @@ Wiki entries are plain markdown with YAML front matter, stored at `~/llmwiki/wik
 wiki/
 ├── _index.md                              # global project listing
 ├── clients/
-│   ├── insly/
+│   ├── acme/
 │   │   ├── _index.md                      # client executive summary + C4 diagram
-│   │   ├── qmt-api.md                     # single-service project
-│   │   ├── document-service.md
-│   │   └── calcly-manager-pl.md
-│   └── circusstreet/
+│   │   ├── billing-api.md                 # single-service project
+│   │   ├── notification-service.md
+│   │   └── ecommerce/
+│   │       ├── _index.md                  # project overview + service table
+│   │       ├── cart-service.md            # per-service wiki
+│   │       ├── payment-service.md
+│   │       └── ...
+│   └── globex/
 │       ├── _index.md                      # client executive summary
-│       └── cs2/
-│           ├── _index.md                  # project overview + service table
-│           ├── identity.service.md        # per-service wiki
-│           ├── audit.service.md
+│       └── platform/
+│           ├── _index.md                  # project overview
+│           ├── auth-service.md
+│           ├── user-service.md
 │           └── ...
 ├── personal/
-│   └── llmwiki.md
+│   └── my-tool.md
 └── opensource/
     └── some-lib.md
 ```
@@ -169,12 +173,12 @@ Every wiki file has structured YAML front matter with metadata:
 
 ```yaml
 ---
-name: qmt-api
-customer: insly
+name: billing-api
+customer: acme
 type: client
 status: active
 tags: [go, gin, grpc, kubernetes, rabbitmq, event-driven]
-last_ingested: 2026-04-17T07:11:28Z
+last_ingested: 2025-01-15T10:30:00Z
 ---
 ```
 

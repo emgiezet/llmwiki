@@ -113,3 +113,86 @@ SERVICE SCAN (files from the service directory):
 Output ONLY the markdown sections above. No preamble, no explanation.`,
 		serviceName, projectName, scanSummary, updateNote)
 }
+
+// BuildMultiProjectIndexPrompt builds the prompt for generating a multi-service project _index.md.
+func BuildMultiProjectIndexPrompt(projectName string, serviceSummaries string, existingWiki string) string {
+	updateNote := ""
+	if existingWiki != "" {
+		updateNote = fmt.Sprintf(`
+EXISTING INDEX (update this — preserve accurate information, correct outdated sections):
+%s
+
+`, existingWiki)
+	}
+
+	return fmt.Sprintf(`You are generating a project-level overview for a multi-service software project.
+Project name: %s
+
+SERVICE SUMMARIES (extracted from individual service wiki files):
+%s
+
+%sGenerate a project index using EXACTLY these markdown sections. Be thorough — this is the entry point for engineers joining this project.
+
+## Domain
+(What this project does as a whole. Business context, users, and problems solved — synthesized from all service purposes.)
+
+## Architecture
+(How the services relate to each other. Decomposition rationale, communication patterns, shared infrastructure. What design decisions shaped this service topology.)
+
+## Services
+(Markdown table listing each service: | Service | Purpose | Key Tech | Wiki Link |
+Use relative links to each service file, e.g., [service-name](service-name.md))
+
+## System Diagram
+(Mermaid flowchart showing ALL services and their interactions. Output a mermaid code block using flowchart LR. Show data flow between services, external systems, databases, and queues. Label edges with protocols.)
+
+## Integrations
+(Consolidated external integrations across all services. Group by: databases, message queues, external APIs, observability.)
+
+## Tech Stack
+(Union of technologies used across all services.)
+
+## Tags
+(Comma-separated consolidated tags across all services.)
+
+Output ONLY the markdown sections above. No preamble, no explanation.`,
+		projectName, serviceSummaries, updateNote)
+}
+
+// BuildClientIndexPrompt builds the prompt for generating a per-client _index.md.
+func BuildClientIndexPrompt(customer string, projectSummaries string) string {
+	return fmt.Sprintf(`You are generating an executive overview for a client's entire technology portfolio.
+Client: %s
+
+PROJECT SUMMARIES (extracted from individual project wiki files):
+%s
+
+Generate a client-level index using EXACTLY these markdown sections. Be thorough — this document gives leadership and new engineers a complete picture of this client's technology landscape.
+
+## Executive Summary
+(Business overview: what this client does, what problems their systems solve, how the projects relate to each other. Written for a technical leader or architect joining the account.)
+
+## C4 Diagram
+(Mermaid C4Context diagram showing all projects as systems and their key relationships. Use this EXACT mermaid syntax:
+
+C4Context
+    title System Landscape for %s
+    System(system_id, "System Name", "Description")
+    System_Ext(ext_id, "External System", "Description")
+    Rel(from_id, to_id, "Relationship", "Protocol")
+
+Show each project as a System, shared infrastructure as System_Ext, and key data flows as Rel.)
+
+## Architecture Overview
+(Common architectural patterns across projects. Shared infrastructure, databases, message queues, observability stack. Technology choices and their rationale. Cross-cutting concerns like authentication, deployment, CI/CD.)
+
+## Projects
+(Markdown table: | Project | Description | Tech Stack | Wiki Link |
+One row per project with a one-line summary. Use relative links to each project's wiki file.)
+
+## Tags
+(Comma-separated consolidated tags across all projects.)
+
+Output ONLY the markdown sections above. No preamble, no explanation.`,
+		customer, projectSummaries, customer)
+}

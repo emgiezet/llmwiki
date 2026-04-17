@@ -2,6 +2,7 @@ package ingestion
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -27,10 +28,25 @@ func IngestProject(ctx context.Context, projectDir, projectName string, cfg conf
 		if err := ingestMultiService(ctx, projectDir, projectName, services, cfg, l); err != nil {
 			return err
 		}
+		// Generate project-level index for multi-service projects
+		if err := GenerateMultiProjectIndex(ctx, cfg.WikiRoot, cfg.Type, cfg.Customer, projectName, l); err != nil {
+			return fmt.Errorf("generate project index: %w", err)
+		}
 	}
 
 	// Cross-link wiki files after writing
-	return wiki.LinkWikiFiles(cfg.WikiRoot)
+	if err := wiki.LinkWikiFiles(cfg.WikiRoot); err != nil {
+		return err
+	}
+
+	// Generate client index (only for client-type projects)
+	if cfg.Type == "client" && cfg.Customer != "" {
+		if err := GenerateClientIndex(ctx, cfg.WikiRoot, cfg.Customer, l); err != nil {
+			return fmt.Errorf("generate client index: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func ingestSingleService(ctx context.Context, projectDir, projectName string, cfg config.Merged, l llm.LLM) error {

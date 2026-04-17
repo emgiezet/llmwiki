@@ -31,7 +31,15 @@ func DiscoverLinkTargets(wikiRoot string) ([]LinkTarget, error) {
 		if err != nil || d.IsDir() {
 			return nil
 		}
-		if !strings.HasSuffix(path, ".md") || strings.HasSuffix(path, "_index.md") {
+		if !strings.HasSuffix(path, ".md") {
+			return nil
+		}
+		// Skip root _index.md (structured index, not prose)
+		if path == filepath.Join(wikiRoot, "_index.md") {
+			return nil
+		}
+		// Skip client/project _index.md for link target discovery (they link TO others, not FROM)
+		if d.Name() == "_index.md" {
 			return nil
 		}
 		rel, _ := filepath.Rel(wikiRoot, path)
@@ -60,7 +68,11 @@ func LinkWikiFiles(wikiRoot string) error {
 		if err != nil || d.IsDir() {
 			return nil
 		}
-		if !strings.HasSuffix(path, ".md") || strings.HasSuffix(path, "_index.md") {
+		if !strings.HasSuffix(path, ".md") {
+			return nil
+		}
+		// Skip root _index.md (structured index, not prose)
+		if path == filepath.Join(wikiRoot, "_index.md") {
 			return nil
 		}
 		data, readErr := os.ReadFile(path)

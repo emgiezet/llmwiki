@@ -20,6 +20,7 @@ func main() {
 		cmd.NewContextCmd(),
 		cmd.NewListCmd(),
 		cmd.NewLinkCmd(),
+		cmd.NewIndexCmd(),
 	)
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

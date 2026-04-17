@@ -20,9 +20,17 @@ func IngestProject(ctx context.Context, projectDir, projectName string, cfg conf
 	}
 
 	if len(services) == 0 {
-		return ingestSingleService(ctx, projectDir, projectName, cfg, l)
+		if err := ingestSingleService(ctx, projectDir, projectName, cfg, l); err != nil {
+			return err
+		}
+	} else {
+		if err := ingestMultiService(ctx, projectDir, projectName, services, cfg, l); err != nil {
+			return err
+		}
 	}
-	return ingestMultiService(ctx, projectDir, projectName, services, cfg, l)
+
+	// Cross-link wiki files after writing
+	return wiki.LinkWikiFiles(cfg.WikiRoot)
 }
 
 func ingestSingleService(ctx context.Context, projectDir, projectName string, cfg config.Merged, l llm.LLM) error {

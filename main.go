@@ -19,6 +19,7 @@ func main() {
 		cmd.NewQueryCmd(),
 		cmd.NewContextCmd(),
 		cmd.NewListCmd(),
+		cmd.NewLinkCmd(),
 	)
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -1,138 +1,132 @@
 # llmwiki
 
-A CLI that scans your project directories and generates a persistent, LLM-maintained markdown knowledge base. Inspired by [Karpathy's LLM Wiki pattern](https://x.com/karpathy/status/1908184210424959371) — plain markdown files that compound over time, browsable in any editor, injectable into AI coding sessions.
+**You can't keep 30 projects in your head. Neither can your AI coding assistant.**
 
-The wiki is fully compatible with [Obsidian](https://obsidian.md/) — point it at your `~/llmwiki/wiki/` directory and you get a navigable vault with rendered mermaid diagrams, cross-linked files, and YAML front matter properties out of the box.
+Every developer hits a cognitive wall. You switch from the billing API to the notification service and spend 20 minutes re-reading code just to remember how it's wired together. You onboard onto a client's codebase and the architecture lives in someone's head — or worse, in a stale Confluence page from 2022. Your AI pair programmer starts every session blind, re-discovering the same project structure you explained yesterday.
 
-## Features
+`llmwiki` fixes this. It scans your project directories and generates a persistent, LLM-maintained markdown knowledge base that compounds over time. Every project gets a structured wiki entry with architecture diagrams, API documentation, integration maps, and cross-references — written by an LLM that actually reads your code, not by a developer who "will document it later."
 
-- **Per-service wiki files** — multi-service projects get one detailed file per service, auto-detected from docker-compose, subdirectories, or code indicators (Go, PHP, Python, Rust, Java, Ruby)
-- **Mermaid diagrams** — system architecture flowcharts and entity-relationship diagrams generated in every wiki entry, rendered natively in GitHub, GitLab, and Obsidian
-- **Auto-generated tags** — technologies and architectural patterns (`go, grpc, event-driven, microservices, ...`) extracted into YAML front matter, searchable in Obsidian
-- **API documentation** — swagger/openapi specs are scanned and endpoints listed as markdown tables in the API Surface section
-- **Cross-file links** — wiki files that mention other tracked projects or services get automatic `[name](path.md)` links, creating a navigable knowledge graph
-- **Client indexes** — per-client `_index.md` with executive summary, C4 system landscape diagram, architecture overview, and a projects table with links
-- **Project indexes** — multi-service projects get a synthesized `_index.md` with domain overview, service table, and system diagram
-- **CLAUDE.md injection** — pipe wiki context directly into `CLAUDE.md` files for AI coding sessions, with automatic marker-based replacement
-- **Three LLM backends** — Claude Code CLI (default, uses subscription), Anthropic API, or local Ollama for private/NDA code
-- **Incremental updates** — re-running ingest on a project feeds the existing wiki entry to the LLM, so content refines over time rather than regenerating from scratch
+Inspired by [Karpathy's LLM Wiki pattern](https://x.com/karpathy/status/1908184210424959371). Plain markdown files. No database. No SaaS. Browsable in any editor. Injectable into AI coding sessions. Version-controlled with git.
 
-## Install
+![llmwiki in Obsidian](docs/obsidian.png)
 
-```bash
-go install github.com/mgz/llmwiki@latest
-```
+## The Problem
 
-Or build from source:
+You manage multiple projects across multiple clients. Each project has its own stack, its own services, its own integration points. You context-switch between them daily. The knowledge you need is scattered across READMEs that were last updated when the project was bootstrapped, docker-compose files that hint at the architecture, and tribal knowledge that lives in Slack threads.
+
+Your AI coding assistant starts every conversation from zero — it reads the files you point it at but has no understanding of the broader system, the other services, or why things are structured the way they are.
+
+**What if every project had a living, always-current technical wiki — and your AI assistant could read it before writing a single line of code?**
+
+## What llmwiki Generates
+
+One command scans a project and produces a comprehensive wiki entry:
 
 ```bash
-git clone https://github.com/mgz/llmwiki.git
-cd llmwiki
-go build -o llmwiki .
+llmwiki ingest ~/workspace/my-api
 ```
+
+The output is a structured markdown file with:
+- **Domain & Architecture** — what the project does, how it's structured, key design decisions
+- **Service map** — every microservice with its purpose, tech stack, and responsibilities
+- **Mermaid diagrams** — system architecture flowcharts and entity-relationship diagrams, rendered in GitHub/Obsidian
+- **API documentation** — endpoints extracted from swagger/openapi specs
+- **Integration map** — databases, message queues, external APIs with protocols and auth methods
+- **Configuration reference** — environment variables, feature flags, runtime modes
+- **Auto-generated tags** — technologies and patterns in YAML front matter (`go, grpc, event-driven, kubernetes, ...`)
+
+For clients with multiple projects, `llmwiki` generates **executive summaries** with C4 system landscape diagrams showing how everything fits together.
+
+Every wiki file is cross-linked — mention a service name and it becomes a clickable reference to that service's wiki page.
 
 ## Quick Start
 
 ```bash
-# Ingest a project (uses Claude Code CLI by default)
+# Install
+go install github.com/emgiezet/llmwiki@latest
+
+# Ingest a project
 llmwiki ingest ~/workspace/my-project
 
 # See what's tracked
 llmwiki list
 
-# Get context for an AI coding session
-llmwiki context my-project
-
-# Inject into a CLAUDE.md
+# Feed context to your AI coding session
 llmwiki context my-project --inject CLAUDE.md
 
-# Ask a question across all projects
-llmwiki query "which projects use gRPC?"
+# Ask questions across all your projects
+llmwiki query "which services use gRPC?"
 
 # Generate client-level executive summary
 llmwiki index acme
 ```
 
+## Features
+
+### Automatic service detection
+
+Point `llmwiki` at a monorepo or multi-service project and it figures out the structure. It reads `docker-compose.yml`, scans for subdirectories with code indicators (`go.mod`, `package.json`, `composer.json`, `Dockerfile`, `pom.xml`, `src/`), and creates one wiki file per service.
+
+### Mermaid diagrams
+
+Every wiki entry includes LLM-generated system architecture diagrams and ERDs. Client-level indexes get C4 system landscape diagrams. All render natively in GitHub, GitLab, and Obsidian.
+
+### Cross-file linking
+
+When a wiki entry mentions another tracked project or service, `llmwiki` automatically creates a markdown link. The result is a navigable knowledge graph — click from the client overview to a project, from a project to a service, from a service to the database it depends on.
+
+### AI coding integration
+
+Inject wiki context directly into `CLAUDE.md` (or any file) with marker-based replacement:
+
+```markdown
+<!-- llmwiki:start -->
+<!-- llmwiki:end -->
+```
+
+```bash
+llmwiki context my-project --inject CLAUDE.md
+```
+
+Your AI assistant starts every session with Domain, Architecture, Services, and Flows already in context. No more "can you look at the codebase and figure out what this does."
+
+### Incremental refinement
+
+Re-running `ingest` doesn't regenerate from scratch — the LLM sees the previous wiki entry and refines it. Knowledge compounds. Details get richer with each pass.
+
+### Three LLM backends
+
+| Backend | Config | Best for |
+|---------|--------|----------|
+| Claude Code CLI | `claude-code` (default) | Uses your Claude Code subscription. No API key needed. |
+| Claude API | `claude-api` | Fast bulk ingestion. Requires `ANTHROPIC_API_KEY`. |
+| Ollama | `ollama` | NDA code, air-gapped environments, cost control. |
+
+### Client & project indexes
+
+For consultants and agencies managing multiple clients:
+
+```bash
+llmwiki index acme    # executive summary across all acme projects
+```
+
+Generates a client-level `_index.md` with executive summary, C4 diagram, architecture overview, and a projects table — useful for onboarding, handoffs, and architecture reviews.
+
 ## Commands
 
-### `ingest <path>`
-
-Scans a project directory, sends the collected files to an LLM, and writes structured wiki entries.
-
-- Auto-detects multi-service projects from `docker-compose.yml` or subdirectories containing code indicators (`go.mod`, `package.json`, `composer.json`, `Dockerfile`, `src/`, etc.)
-- Single-service projects get one markdown file; multi-service projects get one file per service plus a project `_index.md`
-- Generates mermaid system diagrams, ERD diagrams, and auto-tags
-- Re-running updates existing entries — the LLM sees the previous wiki content and refines it
-- Automatically cross-links wiki files and regenerates the client index
-
-```bash
-llmwiki ingest ~/workspace/my-api
-llmwiki ingest ~/workspace/my-api --service api-gateway  # refresh one service only
-```
-
-### `list`
-
-Lists all tracked projects with their customer, type, status, and wiki path.
-
-```
-PROJECT            CUSTOMER  TYPE      STATUS  WIKI
--------            --------  ----      ------  ----
-billing-api        acme      client    active  clients/acme/billing-api.md
-ecommerce          acme      client    active  clients/acme/ecommerce/_index.md
-my-tool                      personal  active  personal/my-tool.md
-```
-
-### `context <project>`
-
-Prints key wiki sections to stdout — trimmed for token efficiency. Designed for piping into system prompts or `CLAUDE.md` files. Excludes diagrams and configuration to keep output concise.
-
-```bash
-# Print to stdout
-llmwiki context my-api
-
-# Inject between markers in a file
-llmwiki context my-api --inject CLAUDE.md
-
-# Get a specific service
-llmwiki context my-api --service api-gateway
-```
-
-The `--inject` flag replaces content between `<!-- llmwiki:start -->` and `<!-- llmwiki:end -->` markers in the target file.
-
-### `query "<question>"`
-
-Asks a natural language question across all wiki entries. The LLM receives the full wiki content as context and synthesizes an answer.
-
-```bash
-llmwiki query "what databases does the billing service use?"
-llmwiki query "which services use gRPC?"
-```
-
-### `index [customer]`
-
-Generates or regenerates client-level and project-level index files without re-ingesting source code. Useful after ingesting multiple projects over time.
-
-```bash
-llmwiki index acme           # regenerate acme client index
-llmwiki index                # regenerate all client indexes
-```
-
-Client indexes include an executive summary, C4 system landscape diagram, architecture overview, and a projects table with links.
-
-### `link`
-
-Manually triggers cross-file linking across all wiki files. Runs automatically after each ingest, but can be run standalone.
-
-```bash
-llmwiki link
-```
+| Command | Description |
+|---------|-------------|
+| `ingest <path>` | Scan a project and generate/update wiki entries |
+| `list` | List all tracked projects |
+| `context <project>` | Print wiki context (pipe into CLAUDE.md) |
+| `query "<question>"` | Ask a question across all wiki entries |
+| `index [customer]` | Generate client and project index files |
+| `link` | Add cross-reference links between wiki files |
 
 ## Wiki Structure
 
-Wiki entries are plain markdown with YAML front matter, stored at `~/llmwiki/wiki/` by default:
-
 ```
-wiki/
+~/llmwiki/wiki/
 ├── _index.md                              # global project listing
 ├── clients/
 │   ├── acme/
@@ -147,9 +141,8 @@ wiki/
 │   └── globex/
 │       ├── _index.md                      # client executive summary
 │       └── platform/
-│           ├── _index.md                  # project overview
+│           ├── _index.md
 │           ├── auth-service.md
-│           ├── user-service.md
 │           └── ...
 ├── personal/
 │   └── my-tool.md
@@ -157,72 +150,29 @@ wiki/
     └── some-lib.md
 ```
 
-### Wiki entry sections
-
-**Project files:** Domain, Architecture, Services, Features, Flows, System Diagram, Data Model Diagram, Integrations, Tech Stack, Configuration, Notes
-
-**Service files:** Purpose, Architecture, API Surface, System Diagram, Data Model, Data Model Diagram, Integrations, Configuration, Notes
-
-**Client index:** Executive Summary, C4 Diagram, Architecture Overview, Projects
-
-**Project index (multi-service):** Domain, Architecture, Services, System Diagram, Integrations, Tech Stack
-
-### YAML front matter
-
-Every wiki file has structured YAML front matter with metadata:
-
-```yaml
----
-name: billing-api
-customer: acme
-type: client
-status: active
-tags: [go, gin, grpc, kubernetes, rabbitmq, event-driven]
-last_ingested: 2025-01-15T10:30:00Z
----
-```
-
-Tags are auto-generated by the LLM and include languages, frameworks, infrastructure, and architectural patterns.
+Plain markdown with YAML front matter. No proprietary format. Works with git, grep, and any text editor.
 
 ## Obsidian Compatibility
 
-![llmwiki in Obsidian](docs/obsidian.png)
-
 ![llmwiki graph view in Obsidian](docs/obsidian2.png)
 
-The wiki directory works as an Obsidian vault out of the box:
+The wiki directory works as an [Obsidian](https://obsidian.md/) vault out of the box:
 
 1. Open Obsidian, choose "Open folder as vault", select `~/llmwiki/wiki/`
-2. Mermaid diagrams (system architecture, ERD, C4) render natively in Obsidian's preview
-3. Cross-file links (`[service-name](path.md)`) are navigable — click through from client index to project to service
-4. YAML front matter shows as properties in Obsidian's properties view
-5. Tags in front matter are searchable via Obsidian's tag pane
-
-For the best experience, enable these Obsidian core plugins:
-- **Tags** — browse by technology (`#go`, `#grpc`, `#kubernetes`)
-- **Graph view** — visualize connections between projects and services
-- **Backlinks** — see which files reference a given service
-
-## LLM Backends
-
-Three backends, configured per-project or globally:
-
-| Backend | Config value | How it works |
-|---------|-------------|-------------|
-| Claude Code CLI | `claude-code` (default) | Shells out to `claude -p`. Uses your Claude Code subscription — no API key needed. |
-| Claude API | `claude-api` | Anthropic Go SDK. Requires `ANTHROPIC_API_KEY` env var or config. |
-| Ollama | `ollama` | Local REST API. For NDA/private code or cost control. |
+2. Mermaid diagrams render natively in preview mode
+3. Cross-file links are clickable — navigate from client to project to service
+4. YAML front matter shows as properties
+5. Tags are searchable via the tag pane
+6. Graph view visualizes your entire knowledge base
 
 ## Configuration
 
 ### Per-project: `llmwiki.yaml`
 
-Drop this in the project root to set its type, customer, and LLM backend:
-
 ```yaml
 type: client         # client | personal | oss
 customer: acme
-llm: ollama
+llm: ollama          # claude-code | claude-api | ollama
 ollama_model: llama3.2
 ```
 
@@ -237,24 +187,13 @@ anthropic_api_key: ""   # or set ANTHROPIC_API_KEY env var
 
 Per-project config overrides global. If neither exists, defaults to `claude-code` with wiki at `~/llmwiki/wiki/`.
 
-## Claude Code Integration
+## Who This Is For
 
-Add markers to your project's `CLAUDE.md`:
-
-```markdown
-# My Project
-
-<!-- llmwiki:start -->
-<!-- llmwiki:end -->
-```
-
-Then run after each ingest:
-
-```bash
-llmwiki context my-project --inject CLAUDE.md
-```
-
-The wiki context (Domain, Architecture, Services, Features, Flows) is injected between the markers, giving Claude Code immediate understanding of your project's architecture.
+- **Consultants** juggling 5+ client codebases who can't afford to re-learn each one every Monday
+- **Tech leads** who need architecture documentation that actually reflects the code
+- **Developers using AI assistants** who are tired of re-explaining project structure every session
+- **Teams onboarding new engineers** who want a "read this first" that writes itself
+- **Anyone** who has ever thought "I'll document this later" and never did
 
 ## License
 

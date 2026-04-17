@@ -73,6 +73,41 @@ func TestDetectServices_SingleService(t *testing.T) {
 	assert.Len(t, services, 0) // single-service: no subdirs = no service split
 }
 
+func TestDetectServices_PHPComposer(t *testing.T) {
+	dir := t.TempDir()
+	svcDir := filepath.Join(dir, "api-service")
+	require.NoError(t, os.MkdirAll(svcDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(svcDir, "composer.json"), []byte(`{"name":"test"}`), 0644))
+
+	services, err := scanner.DetectServices(dir)
+	require.NoError(t, err)
+	assert.Len(t, services, 1)
+	assert.Equal(t, "api-service", services[0].Name)
+}
+
+func TestDetectServices_Dockerfile(t *testing.T) {
+	dir := t.TempDir()
+	svcDir := filepath.Join(dir, "worker")
+	require.NoError(t, os.MkdirAll(svcDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(svcDir, "Dockerfile"), []byte("FROM php:8.3"), 0644))
+
+	services, err := scanner.DetectServices(dir)
+	require.NoError(t, err)
+	assert.Len(t, services, 1)
+	assert.Equal(t, "worker", services[0].Name)
+}
+
+func TestDetectServices_SrcDir(t *testing.T) {
+	dir := t.TempDir()
+	svcDir := filepath.Join(dir, "audit.service")
+	require.NoError(t, os.MkdirAll(filepath.Join(svcDir, "src"), 0755))
+
+	services, err := scanner.DetectServices(dir)
+	require.NoError(t, err)
+	assert.Len(t, services, 1)
+	assert.Equal(t, "audit.service", services[0].Name)
+}
+
 func TestScanService_CollectsProto(t *testing.T) {
 	dir := t.TempDir()
 	svcDir := filepath.Join(dir, "api-gateway")

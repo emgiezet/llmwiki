@@ -71,12 +71,22 @@ func servicesFromCompose(path string) ([]ServiceDir, error) {
 }
 
 func looksLikeService(dir string) bool {
-	indicators := []string{"go.mod", "package.json", "Cargo.toml", "main.go", "main.py", "*.proto"}
+	indicators := []string{
+		"go.mod", "package.json", "Cargo.toml",
+		"main.go", "main.py", "*.proto",
+		"composer.json", "Dockerfile",
+		"requirements.txt", "Gemfile",
+		"build.gradle", "pom.xml",
+	}
 	for _, pattern := range indicators {
 		matches, _ := filepath.Glob(filepath.Join(dir, pattern))
 		if len(matches) > 0 {
 			return true
 		}
+	}
+	// Fallback: src/ directory is a strong service indicator
+	if info, err := os.Stat(filepath.Join(dir, "src")); err == nil && info.IsDir() {
+		return true
 	}
 	return false
 }

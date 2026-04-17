@@ -48,6 +48,83 @@ type ServiceEntry struct {
 	Body string
 }
 
+// ClientMeta is YAML front matter for a per-client _index.md.
+type ClientMeta struct {
+	Customer      string    `yaml:"customer"`
+	Projects      []string  `yaml:"projects"`
+	Tags          []string  `yaml:"tags,omitempty"`
+	LastGenerated time.Time `yaml:"last_generated"`
+}
+
+// MultiProjectMeta is YAML front matter for a multi-service project _index.md.
+type MultiProjectMeta struct {
+	Name          string    `yaml:"name"`
+	Customer      string    `yaml:"customer"`
+	Type          string    `yaml:"type"`
+	Status        string    `yaml:"status"`
+	Services      []string  `yaml:"services"`
+	Tags          []string  `yaml:"tags,omitempty"`
+	LastGenerated time.Time `yaml:"last_generated"`
+}
+
+// ClientEntry holds parsed client index wiki file.
+type ClientEntry struct {
+	Meta ClientMeta
+	Body string
+}
+
+// MultiProjectEntry holds parsed multi-service project index.
+type MultiProjectEntry struct {
+	Meta MultiProjectMeta
+	Body string
+}
+
+func ParseClientEntry(data []byte) (ClientEntry, error) {
+	fm, body := splitFrontMatter(data)
+	var meta ClientMeta
+	if fm != nil {
+		if err := yaml.Unmarshal(fm, &meta); err != nil {
+			return ClientEntry{}, fmt.Errorf("parse client front matter: %w", err)
+		}
+	}
+	return ClientEntry{Meta: meta, Body: string(body)}, nil
+}
+
+func WriteClientEntry(path string, meta ClientMeta, body string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	fm, err := yaml.Marshal(meta)
+	if err != nil {
+		return err
+	}
+	content := fmt.Sprintf("---\n%s---\n%s", fm, body)
+	return os.WriteFile(path, []byte(content), 0644)
+}
+
+func ParseMultiProjectEntry(data []byte) (MultiProjectEntry, error) {
+	fm, body := splitFrontMatter(data)
+	var meta MultiProjectMeta
+	if fm != nil {
+		if err := yaml.Unmarshal(fm, &meta); err != nil {
+			return MultiProjectEntry{}, fmt.Errorf("parse multi-project front matter: %w", err)
+		}
+	}
+	return MultiProjectEntry{Meta: meta, Body: string(body)}, nil
+}
+
+func WriteMultiProjectEntry(path string, meta MultiProjectMeta, body string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	fm, err := yaml.Marshal(meta)
+	if err != nil {
+		return err
+	}
+	content := fmt.Sprintf("---\n%s---\n%s", fm, body)
+	return os.WriteFile(path, []byte(content), 0644)
+}
+
 var separator = []byte("---\n")
 
 func splitFrontMatter(data []byte) ([]byte, []byte) {

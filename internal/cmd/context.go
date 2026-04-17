@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/mgz/llmwiki/internal/config"
 	"github.com/mgz/llmwiki/internal/wiki"
@@ -93,35 +92,13 @@ func buildContextOutput(wikiRoot, projectName, service string) (string, error) {
 // extractProjectSections returns the key sections for CLAUDE.md injection.
 // Intentionally excludes: System Diagram, Data Model Diagram, Tags (too verbose for context injection).
 func extractProjectSections(body string) string {
-	return extractSections(body, []string{"## Domain", "## Architecture", "## Services", "## Features", "## Flows"})
+	return wiki.ExtractSections(body, []string{"## Domain", "## Architecture", "## Services", "## Features", "## Flows"})
 }
 
 // extractServiceSections returns the key sections for CLAUDE.md injection.
 // Intentionally excludes: System Diagram, Data Model Diagram, Tags (too verbose for context injection).
 func extractServiceSections(body string) string {
-	return extractSections(body, []string{"## Purpose", "## Architecture", "## API Surface", "## Integrations"})
-}
-
-func extractSections(body string, keep []string) string {
-	lines := strings.Split(body, "\n")
-	var out []string
-	inKept := false
-	for _, line := range lines {
-		isHeader := strings.HasPrefix(line, "## ")
-		if isHeader {
-			inKept = false
-			for _, s := range keep {
-				if strings.HasPrefix(line, s) {
-					inKept = true
-					break
-				}
-			}
-		}
-		if inKept {
-			out = append(out, line)
-		}
-	}
-	return strings.Join(out, "\n")
+	return wiki.ExtractSections(body, []string{"## Purpose", "## Architecture", "## API Surface", "## Integrations"})
 }
 
 func injectIntoFile(path, content string) error {

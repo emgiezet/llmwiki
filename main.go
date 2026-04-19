@@ -21,6 +21,9 @@ func main() {
 		cmd.NewListCmd(),
 		cmd.NewLinkCmd(),
 		cmd.NewIndexCmd(),
+		cmd.NewRememberCmd(),
+		cmd.NewRecallCmd(),
+		cmd.NewDocsCmd(),
 	)
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -39,6 +39,84 @@ For clients with multiple projects, `llmwiki` generates **executive summaries** 
 
 Every wiki file is cross-linked — mention a service name and it becomes a clickable reference to that service's wiki page.
 
+## How It Works
+
+### Core Pipeline
+
+```mermaid
+flowchart LR
+    subgraph Scan
+        A[Project Directory] --> B[Scanner]
+        B --> |README, go.mod,\nDockerfile, .proto,\nswagger specs...|C[Scan Summary]
+    end
+
+    subgraph Detect
+        A --> D{docker-compose\nor service dirs?}
+        D --> |single service|E[One wiki file]
+        D --> |multi-service|F[One file per service\n+ project index]
+    end
+
+    subgraph Generate
+        C --> G[Build Prompt]
+        G --> H[LLM]
+        H --> I[Structured Markdown\n+ YAML Front Matter]
+    end
+
+    subgraph Write
+        I --> J[Wiki Files]
+        J --> K[Cross-Link]
+        K --> L[Update Index]
+    end
+
+    subgraph Use
+        L --> M[llmwiki context\n→ inject into CLAUDE.md]
+        L --> N[llmwiki query\n→ ask across projects]
+        L --> O[Browse in\nObsidian / editor]
+    end
+```
+
+### With Graymatter Memory
+
+When `memory_enabled: true`, [graymatter](https://github.com/angelnicolasc/graymatter) adds a persistent memory layer. Knowledge compounds across ingestion runs — the LLM sees what it learned before, cross-project patterns surface automatically, and the `query` command gets semantic search instead of brute-force file walking.
+
+```mermaid
+flowchart LR
+    subgraph Ingest ["llmwiki ingest"]
+        A[Scanner] --> B[Scan Summary]
+        B --> C[Build Prompt]
+        GM[(graymatter\nmemory)] --> |"Recall:\nprevious facts,\ncross-project\npatterns"|C
+        C --> D[LLM]
+        D --> E[Wiki Files]
+        E --> |"Remember:\nextract & store\natomic facts"|GM
+    end
+
+    subgraph Context ["llmwiki context"]
+        F[Wiki Sections] --> G[Output]
+        GM --> |"Recall:\ncross-project\nknowledge"|G
+        G --> H[Inject into\nCLAUDE.md]
+    end
+
+    subgraph Query ["llmwiki query"]
+        I[Wiki Walk] --> J[Combined\nContext]
+        GM --> |"Recall:\nsemantic search\nacross all facts"|J
+        J --> K[LLM]
+        K --> L[Answer]
+    end
+
+    subgraph Docs ["llmwiki docs"]
+        M[Scan + Wiki\n+ Existing Doc] --> N[Build Prompt]
+        GM --> |"Recall:\nfull project\nhistory"|N
+        N --> O[LLM]
+        O --> P[Updated\nREADME.md]
+    end
+```
+
+**Memory stores facts at two levels:**
+- **Per-project** (`llmwiki/project/{name}`) — architecture, integrations, tech stack, service topology
+- **Per-customer** (`llmwiki/customer/{name}`) — shared infrastructure, cross-project patterns, technology standards
+
+Facts decay over time (30-day half-life) and consolidate in the background. Embedding search uses whatever's available: Ollama → OpenAI → Anthropic → keyword-only fallback.
+
 ## Quick Start
 
 ```bash
@@ -59,6 +137,9 @@ llmwiki query "which services use gRPC?"
 
 # Generate client-level executive summary
 llmwiki index acme
+
+# Update a project's stale README from wiki + memory
+llmwiki docs ~/workspace/my-project --write
 ```
 
 ## Features
@@ -117,11 +198,18 @@ Generates a client-level `_index.md` with executive summary, C4 diagram, archite
 | Command | Description |
 |---------|-------------|
 | `ingest <path>` | Scan a project and generate/update wiki entries |
+| `ingest <path> --no-memory` | Ingest without memory recall/storage |
 | `list` | List all tracked projects |
 | `context <project>` | Print wiki context (pipe into CLAUDE.md) |
 | `query "<question>"` | Ask a question across all wiki entries |
+| `docs <path>` | Generate/update project documentation from wiki + memory |
+| `docs <path> --write` | Write the updated doc to the project directory |
+| `docs <path> --target FILE` | Update a specific file (default: README.md) |
 | `index [customer]` | Generate client and project index files |
 | `link` | Add cross-reference links between wiki files |
+| `remember --project <name> "<fact>"` | Store a fact in memory |
+| `recall "<query>"` | Recall facts from memory |
+| `recall --project <name> "<query>"` | Recall facts for a specific project |
 
 ## Wiki Structure
 
@@ -183,9 +271,23 @@ wiki_root: ~/llmwiki/wiki
 llm: claude-code
 ollama_host: http://localhost:11434
 anthropic_api_key: ""   # or set ANTHROPIC_API_KEY env var
+memory_enabled: false   # enable graymatter persistent memory
+memory_dir: ~/.llmwiki/memory   # where gray.db lives
 ```
 
 Per-project config overrides global. If neither exists, defaults to `claude-code` with wiki at `~/llmwiki/wiki/`.
+
+### Memory
+
+Set `memory_enabled: true` in your global config to activate [graymatter](https://github.com/angelnicolasc/graymatter) integration. Memory is stored in a single `gray.db` file at `~/.llmwiki/memory/`. It reuses your existing `anthropic_api_key` for embeddings, and falls back to Ollama or keyword-only search if no key is available.
+
+Seed tribal knowledge that the scanner can't detect:
+
+```bash
+llmwiki remember --project my-api "billing service was rewritten from PHP to Go in Q1 2025"
+llmwiki remember --project my-api "uses custom auth middleware in pkg/auth, not standard library"
+llmwiki recall "which projects use gRPC?"
+```
 
 ## Who This Is For
 

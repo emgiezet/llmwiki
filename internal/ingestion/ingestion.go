@@ -9,23 +9,25 @@ import (
 
 	"github.com/mgz/llmwiki/internal/config"
 	"github.com/mgz/llmwiki/internal/llm"
+	"github.com/mgz/llmwiki/internal/memory"
 	"github.com/mgz/llmwiki/internal/scanner"
 	"github.com/mgz/llmwiki/internal/wiki"
 )
 
 // IngestProject scans projectDir and writes wiki entries to cfg.WikiRoot.
-func IngestProject(ctx context.Context, projectDir, projectName string, cfg config.Merged, l llm.LLM) error {
+// mem may be nil to disable memory recall/storage.
+func IngestProject(ctx context.Context, projectDir, projectName string, cfg config.Merged, l llm.LLM, mem *memory.Store) error {
 	services, err := scanner.DetectServices(projectDir)
 	if err != nil {
 		return err
 	}
 
 	if len(services) == 0 {
-		if err := ingestSingleService(ctx, projectDir, projectName, cfg, l); err != nil {
+		if err := ingestSingleService(ctx, projectDir, projectName, cfg, l, mem); err != nil {
 			return err
 		}
 	} else {
-		if err := ingestMultiService(ctx, projectDir, projectName, services, cfg, l); err != nil {
+		if err := ingestMultiService(ctx, projectDir, projectName, services, cfg, l, mem); err != nil {
 			return err
 		}
 		// Generate project-level index for multi-service projects
@@ -49,7 +51,7 @@ func IngestProject(ctx context.Context, projectDir, projectName string, cfg conf
 	return nil
 }
 
-func ingestSingleService(ctx context.Context, projectDir, projectName string, cfg config.Merged, l llm.LLM) error {
+func ingestSingleService(ctx context.Context, projectDir, projectName string, cfg config.Merged, l llm.LLM, mem *memory.Store) error {
 	scan, err := scanner.ScanProject(projectDir)
 	if err != nil {
 		return err
@@ -58,7 +60,10 @@ func ingestSingleService(ctx context.Context, projectDir, projectName string, cf
 	wikiPath := wikiFilePath(cfg.WikiRoot, cfg.Type, cfg.Customer, projectName, "")
 	existing := loadExistingBody(wikiPath)
 
-	prompt := BuildProjectPrompt(projectName, scan.Summary, existing)
+	// Recall previous knowledge for prompt enrichment.
+	recalled, _ := mem.RecallForProject(ctx, projectName, cfg.Customer)
+
+	prompt := BuildProjectPrompt(projectName, scan.Summary, existing, recalled)
 	body, err := l.Generate(ctx, prompt)
 	if err != nil {
 		return err
@@ -80,6 +85,9 @@ func ingestSingleService(ctx context.Context, projectDir, projectName string, cf
 		return err
 	}
 
+	// Store facts from this ingestion.
+	_ = mem.RememberIngestion(ctx, projectName, cfg.Customer, body, tags)
+
 	relPath, _ := filepath.Rel(cfg.WikiRoot, wikiPath)
 	return wiki.UpsertIndex(filepath.Join(cfg.WikiRoot, "_index.md"), wiki.IndexEntry{
 		Name:     projectName,
@@ -90,7 +98,10 @@ func ingestSingleService(ctx context.Context, projectDir, projectName string, cf
 	})
 }
 
-func ingestMultiService(ctx context.Context, projectDir, projectName string, services []scanner.ServiceDir, cfg config.Merged, l llm.LLM) error {
+func ingestMultiService(ctx context.Context, projectDir, projectName string, services []scanner.ServiceDir, cfg config.Merged, l llm.LLM, mem *memory.Store) error {
+	// Recall project-level knowledge once for all services.
+	recalled, _ := mem.RecallForProject(ctx, projectName, cfg.Customer)
+
 	for _, svc := range services {
 		scan, err := scanner.ScanProject(svc.Path)
 		if err != nil {
@@ -100,7 +111,7 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 		wikiPath := wikiFilePath(cfg.WikiRoot, cfg.Type, cfg.Customer, projectName, svc.Name)
 		existing := loadExistingServiceBody(wikiPath)
 
-		prompt := BuildServicePrompt(svc.Name, projectName, scan.Summary, existing)
+		prompt := BuildServicePrompt(svc.Name, projectName, scan.Summary, existing, recalled)
 		body, err := l.Generate(ctx, prompt)
 		if err != nil {
 			return err
@@ -118,6 +129,9 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 		if err := wiki.WriteServiceEntry(wikiPath, meta, "\n"+body+"\n"); err != nil {
 			return err
 		}
+
+		// Store facts from this service ingestion.
+		_ = mem.RememberServiceIngestion(ctx, projectName, svc.Name, cfg.Customer, body, tags)
 	}
 
 	indexPath := filepath.Join(cfg.WikiRoot, TypeToDir(cfg.Type), cfg.Customer, projectName, "_index.md")

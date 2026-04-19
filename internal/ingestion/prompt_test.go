@@ -8,7 +8,7 @@ import (
 )
 
 func TestBuildProjectPrompt_IncludesScan(t *testing.T) {
-	prompt := ingestion.BuildProjectPrompt("myproject", "README.md content here", "")
+	prompt := ingestion.BuildProjectPrompt("myproject", "README.md content here", "", "")
 	assert.Contains(t, prompt, "README.md content here")
 	assert.Contains(t, prompt, "## Domain")
 	assert.Contains(t, prompt, "## Architecture")
@@ -28,13 +28,13 @@ func TestBuildProjectPrompt_IncludesScan(t *testing.T) {
 
 func TestBuildProjectPrompt_IncludesExisting(t *testing.T) {
 	existing := "## Domain\nOld description."
-	prompt := ingestion.BuildProjectPrompt("myproject", "scan data", existing)
+	prompt := ingestion.BuildProjectPrompt("myproject", "scan data", existing, "")
 	assert.Contains(t, prompt, "Old description.")
 	assert.Contains(t, prompt, "update")
 }
 
 func TestBuildServicePrompt_IncludesScan(t *testing.T) {
-	prompt := ingestion.BuildServicePrompt("api-gateway", "myproject", "proto file content", "")
+	prompt := ingestion.BuildServicePrompt("api-gateway", "myproject", "proto file content", "", "")
 	assert.Contains(t, prompt, "proto file content")
 	assert.Contains(t, prompt, "## Purpose")
 	assert.Contains(t, prompt, "## Architecture")

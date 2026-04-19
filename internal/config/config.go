@@ -14,6 +14,8 @@ type GlobalConfig struct {
 	LLM             string `yaml:"llm"`
 	OllamaHost      string `yaml:"ollama_host"`
 	AnthropicAPIKey string `yaml:"anthropic_api_key"`
+	MemoryEnabled   bool   `yaml:"memory_enabled"`
+	MemoryDir       string `yaml:"memory_dir"`
 }
 
 type ProjectConfig struct {
@@ -32,6 +34,8 @@ type Merged struct {
 	AnthropicAPIKey string
 	Customer        string
 	Type            string
+	MemoryEnabled   bool
+	MemoryDir       string
 }
 
 func homeDir() string {
@@ -71,6 +75,10 @@ func LoadProjectConfig(projectDir string) (ProjectConfig, error) {
 }
 
 func Merge(g GlobalConfig, p ProjectConfig) Merged {
+	memDir := g.MemoryDir
+	if memDir == "" {
+		memDir = filepath.Join(homeDir(), ".llmwiki", "memory")
+	}
 	m := Merged{
 		WikiRoot:        g.WikiRoot,
 		LLM:             g.LLM,
@@ -79,6 +87,8 @@ func Merge(g GlobalConfig, p ProjectConfig) Merged {
 		Customer:        p.Customer,
 		Type:            p.Type,
 		OllamaModel:     p.OllamaModel,
+		MemoryEnabled:   g.MemoryEnabled,
+		MemoryDir:       memDir,
 	}
 	if p.LLM != "" {
 		m.LLM = p.LLM

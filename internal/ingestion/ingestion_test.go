@@ -30,7 +30,7 @@ func TestIngestProject_SingleService(t *testing.T) {
 		Type:     "client",
 	}
 
-	err := ingestion.IngestProject(context.Background(), projectDir, "myapp", cfg, fakeLLM)
+	err := ingestion.IngestProject(context.Background(), projectDir, "myapp", cfg, fakeLLM, nil)
 	require.NoError(t, err)
 
 	// Single-service project: wiki/clients/acme/myapp.md
@@ -71,7 +71,7 @@ func TestIngestProject_MultiService(t *testing.T) {
 
 	cfg := config.Merged{WikiRoot: wikiRoot, LLM: "claude-code", Customer: "insly", Type: "client"}
 
-	err := ingestion.IngestProject(context.Background(), projectDir, "mmx3", cfg, fakeLLM)
+	err := ingestion.IngestProject(context.Background(), projectDir, "mmx3", cfg, fakeLLM, nil)
 	require.NoError(t, err)
 
 	// Multi-service: wiki/clients/insly/mmx3/api-gateway.md

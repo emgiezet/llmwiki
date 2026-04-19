@@ -3,7 +3,7 @@ package ingestion
 import "fmt"
 
 // BuildProjectPrompt builds the LLM prompt for generating/updating a project _index.md.
-func BuildProjectPrompt(projectName, scanSummary, existingWiki string) string {
+func BuildProjectPrompt(projectName, scanSummary, existingWiki, recalledKnowledge string) string {
 	updateNote := ""
 	if existingWiki != "" {
 		updateNote = fmt.Sprintf(`
@@ -13,13 +13,18 @@ EXISTING WIKI ENTRY (update this — preserve accurate information, correct outd
 `, existingWiki)
 	}
 
+	memoryNote := ""
+	if recalledKnowledge != "" {
+		memoryNote = recalledKnowledge + "\n"
+	}
+
 	return fmt.Sprintf(`You are maintaining a comprehensive technical wiki for a software project.
 Project name: %s
 
 PROJECT SCAN (files collected from the project directory):
 %s
 
-%sGenerate a wiki entry using EXACTLY these markdown sections. Be thorough and detailed — this wiki is a reference for engineers joining the project. Write in a factual, technical style. Do not speculate beyond what the scan data supports, but do explain implications and architectural significance of what you see.
+%s%sGenerate a wiki entry using EXACTLY these markdown sections. Be thorough and detailed — this wiki is a reference for engineers joining the project. Write in a factual, technical style. Do not speculate beyond what the scan data supports, but do explain implications and architectural significance of what you see.
 
 ## Domain
 (Business context: what this project does, what problems it solves, who uses it, what business domain it operates in. Explain enough that a new engineer understands why this project exists.)
@@ -58,11 +63,11 @@ PROJECT SCAN (files collected from the project directory):
 (Comma-separated list of technology and architectural pattern tags. Include: languages, frameworks, infrastructure, protocols, and patterns like event-driven, microservices, monolith. Example: go, gin, grpc, kubernetes, rabbitmq, event-driven. Output ONLY the comma-separated list, no bullets or explanation.)
 
 Output ONLY the markdown sections above. No preamble, no explanation.`,
-		projectName, scanSummary, updateNote)
+		projectName, scanSummary, memoryNote, updateNote)
 }
 
 // BuildServicePrompt builds the LLM prompt for generating/updating a per-service wiki file.
-func BuildServicePrompt(serviceName, projectName, scanSummary, existingWiki string) string {
+func BuildServicePrompt(serviceName, projectName, scanSummary, existingWiki, recalledKnowledge string) string {
 	updateNote := ""
 	if existingWiki != "" {
 		updateNote = fmt.Sprintf(`
@@ -72,13 +77,18 @@ EXISTING WIKI ENTRY (update this — preserve accurate information, correct outd
 `, existingWiki)
 	}
 
+	memoryNote := ""
+	if recalledKnowledge != "" {
+		memoryNote = recalledKnowledge + "\n"
+	}
+
 	return fmt.Sprintf(`You are maintaining a comprehensive technical wiki for a microservice.
 Service: %s (part of project: %s)
 
 SERVICE SCAN (files from the service directory):
 %s
 
-%sGenerate a wiki entry using EXACTLY these markdown sections. Be thorough and detailed — this wiki is a reference for engineers working on this service. Write in a factual, technical style. Do not speculate beyond what the scan data supports, but do explain implications and architectural significance of what you see.
+%s%sGenerate a wiki entry using EXACTLY these markdown sections. Be thorough and detailed — this wiki is a reference for engineers working on this service. Write in a factual, technical style. Do not speculate beyond what the scan data supports, but do explain implications and architectural significance of what you see.
 
 ## Purpose
 (What this service does, why it exists, what problem it solves, its role within the broader project. Enough context that a new engineer understands the service's reason for being.)
@@ -111,7 +121,7 @@ SERVICE SCAN (files from the service directory):
 (Comma-separated list of technology and architectural pattern tags. Include: languages, frameworks, infrastructure, protocols, and patterns like event-driven, microservices, monolith. Example: go, gin, grpc, kubernetes, rabbitmq, event-driven. Output ONLY the comma-separated list, no bullets or explanation.)
 
 Output ONLY the markdown sections above. No preamble, no explanation.`,
-		serviceName, projectName, scanSummary, updateNote)
+		serviceName, projectName, scanSummary, memoryNote, updateNote)
 }
 
 // BuildMultiProjectIndexPrompt builds the prompt for generating a multi-service project _index.md.
@@ -195,4 +205,64 @@ One row per project with a one-line summary. Use relative links to each project'
 
 Output ONLY the markdown sections above. No preamble, no explanation.`,
 		customer, projectSummaries, customer)
+}
+
+// BuildDocsPrompt builds a prompt for updating a project's documentation file
+// (e.g. README.md) using accumulated wiki knowledge and memory.
+func BuildDocsPrompt(projectName, scanSummary, wikiBody, recalledKnowledge, existingDoc, targetFile string) string {
+	wikiNote := ""
+	if wikiBody != "" {
+		wikiNote = fmt.Sprintf(`
+WIKI KNOWLEDGE (comprehensive technical wiki maintained by llmwiki — this is the authoritative source of truth about the project):
+%s
+
+`, wikiBody)
+	}
+
+	memoryNote := ""
+	if recalledKnowledge != "" {
+		memoryNote = fmt.Sprintf(`
+RECALLED FACTS (from memory — cross-project knowledge, historical context, tribal knowledge):
+%s
+
+`, recalledKnowledge)
+	}
+
+	existingNote := ""
+	if existingDoc != "" {
+		existingNote = fmt.Sprintf(`
+CURRENT %s (this is what developers wrote and stopped maintaining — preserve anything still accurate, fix what's stale, fill gaps):
+%s
+
+`, targetFile, existingDoc)
+	}
+
+	return fmt.Sprintf(`You are updating the %s for a software project. Developers forget to maintain documentation, so you are rebuilding it from multiple knowledge sources: a current code scan, a comprehensive wiki, and recalled facts from project history.
+
+Project name: %s
+
+PROJECT SCAN (current state of the codebase):
+%s
+
+%s%s%sGenerate an updated %s. Follow these rules:
+
+1. Write for a developer who just cloned the repo and needs to be productive in 15 minutes.
+2. Start with a one-line description, then a brief "what this does and why it exists" paragraph.
+3. Include these sections (skip any that don't apply):
+   - **Quick Start** — clone, install deps, run. Concrete commands, not abstractions.
+   - **Architecture** — how the system is structured, key design decisions. Brief but informative.
+   - **Project Structure** — directory layout with one-line descriptions of key directories.
+   - **Development** — how to build, test, lint. Include the actual commands.
+   - **Configuration** — environment variables, config files, what's required vs. optional.
+   - **Deployment** — how this gets deployed, if visible from the codebase.
+   - **API** — key endpoints or interfaces, if applicable. Link to full docs if they exist.
+   - **Contributing** — branch strategy, PR process, testing expectations. Only if the project has conventions visible in the scan.
+4. Use the wiki and recalled facts to fill in context that the code scan alone can't provide — business domain, why architectural decisions were made, cross-project relationships, gotchas.
+5. Do NOT include mermaid diagrams (keep it simple and readable on GitHub).
+6. Do NOT add badges, shields, or decorative elements.
+7. Write in a direct, technical tone. No marketing language.
+8. If the current %s has sections with project-specific content that the wiki/scan can't verify (e.g. contributor names, license details, links to external docs), preserve them.
+
+Output ONLY the markdown content. No preamble, no explanation, no wrapping code fences.`,
+		targetFile, projectName, scanSummary, wikiNote, memoryNote, existingNote, targetFile, targetFile)
 }

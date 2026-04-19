@@ -9,6 +9,7 @@ import (
 	"github.com/mgz/llmwiki/internal/config"
 	"github.com/mgz/llmwiki/internal/ingestion"
 	"github.com/mgz/llmwiki/internal/llm"
+	"github.com/mgz/llmwiki/internal/memory"
 	"github.com/mgz/llmwiki/internal/scanner"
 	"github.com/mgz/llmwiki/internal/wiki"
 	"github.com/spf13/cobra"
@@ -16,6 +17,7 @@ import (
 
 func NewIngestCmd() *cobra.Command {
 	var service string
+	var noMemory bool
 
 	cmd := &cobra.Command{
 		Use:   "ingest <path>",
@@ -52,6 +54,16 @@ func NewIngestCmd() *cobra.Command {
 				return fmt.Errorf("init LLM: %w", err)
 			}
 
+			// Initialize memory store.
+			var mem *memory.Store
+			if cfg.MemoryEnabled && !noMemory {
+				mem, err = memory.NewFromConfig(cfg)
+				if err != nil {
+					return fmt.Errorf("init memory: %w", err)
+				}
+				defer mem.Close()
+			}
+
 			projectName := filepath.Base(projectDir)
 
 			if service != "" {
@@ -72,7 +84,13 @@ func NewIngestCmd() *cobra.Command {
 					}
 				}
 
-				prompt := ingestion.BuildServicePrompt(service, projectName, scan.Summary, existingBody)
+				// Recall previous knowledge for prompt enrichment.
+				var recalled string
+				if mem != nil {
+					recalled, _ = mem.RecallForProject(cmd.Context(), projectName, cfg.Customer)
+				}
+
+				prompt := ingestion.BuildServicePrompt(service, projectName, scan.Summary, existingBody, recalled)
 				body, genErr := l.Generate(cmd.Context(), prompt)
 				if genErr != nil {
 					return genErr
@@ -89,12 +107,18 @@ func NewIngestCmd() *cobra.Command {
 				if writeErr := wiki.WriteServiceEntry(wikiPath, meta, "\n"+body+"\n"); writeErr != nil {
 					return writeErr
 				}
+
+				// Store facts from this service ingestion.
+				if mem != nil {
+					_ = mem.RememberServiceIngestion(cmd.Context(), projectName, service, cfg.Customer, body, tags)
+				}
+
 				fmt.Fprintf(os.Stderr, "Done. Service wiki updated at %s\n", wikiPath)
 				return nil
 			}
 
 			fmt.Fprintf(os.Stderr, "Ingesting %s into %s...\n", projectName, cfg.WikiRoot)
-			if err := ingestion.IngestProject(cmd.Context(), projectDir, projectName, cfg, l); err != nil {
+			if err := ingestion.IngestProject(cmd.Context(), projectDir, projectName, cfg, l, mem); err != nil {
 				return err
 			}
 			fmt.Fprintf(os.Stderr, "Done. Wiki updated at %s\n", cfg.WikiRoot)
@@ -102,5 +126,6 @@ func NewIngestCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&service, "service", "", "Ingest only a specific service subdirectory")
+	cmd.Flags().BoolVar(&noMemory, "no-memory", false, "Disable memory recall/storage for this run")
 	return cmd
 }

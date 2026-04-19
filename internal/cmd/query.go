@@ -8,6 +8,7 @@ import (
 
 	"github.com/mgz/llmwiki/internal/config"
 	"github.com/mgz/llmwiki/internal/llm"
+	"github.com/mgz/llmwiki/internal/memory"
 	"github.com/spf13/cobra"
 )
 
@@ -35,6 +36,20 @@ func NewQueryCmd() *cobra.Command {
 			if global.AnthropicAPIKey == "" {
 				global.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")
 			}
+
+			// Initialize memory store if enabled.
+			cfg := config.Merge(global, config.ProjectConfig{})
+			var memoryContext string
+			if cfg.MemoryEnabled {
+				mem, memErr := memory.NewFromConfig(cfg)
+				if memErr == nil {
+					defer mem.Close()
+					if facts, recallErr := mem.RecallForQuery(cmd.Context(), question); recallErr == nil && len(facts) > 0 {
+						memoryContext = "\nRELEVANT FACTS FROM MEMORY:\n" + strings.Join(facts, "\n") + "\n"
+					}
+				}
+			}
+
 			l, err := llm.NewLLM(llm.Config{
 				Backend:         global.LLM,
 				AnthropicAPIKey: global.AnthropicAPIKey,
@@ -49,10 +64,10 @@ Use only the wiki content below to answer. Be concise.
 
 WIKI CONTENT:
 %s
-
+%s
 QUESTION: %s
 
-Answer:`, wikiContent, question)
+Answer:`, wikiContent, memoryContext, question)
 
 			answer, err := l.Generate(cmd.Context(), prompt)
 			if err != nil {

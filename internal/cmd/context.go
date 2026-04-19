@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/mgz/llmwiki/internal/config"
+	"github.com/mgz/llmwiki/internal/memory"
 	"github.com/mgz/llmwiki/internal/wiki"
 	"github.com/spf13/cobra"
 )
@@ -26,7 +28,18 @@ func NewContextCmd() *cobra.Command {
 				return err
 			}
 
-			ctx, err := buildContextOutput(global.WikiRoot, projectName, service)
+			// Initialize memory store if enabled.
+			cfg := config.Merge(global, config.ProjectConfig{})
+			var mem *memory.Store
+			if cfg.MemoryEnabled {
+				mem, err = memory.NewFromConfig(cfg)
+				if err != nil {
+					return fmt.Errorf("init memory: %w", err)
+				}
+				defer mem.Close()
+			}
+
+			ctx, err := buildContextOutput(global.WikiRoot, projectName, service, mem)
 			if err != nil {
 				return err
 			}
@@ -43,7 +56,7 @@ func NewContextCmd() *cobra.Command {
 	return cmd
 }
 
-func buildContextOutput(wikiRoot, projectName, service string) (string, error) {
+func buildContextOutput(wikiRoot, projectName, service string, mem *memory.Store) (string, error) {
 	if service != "" {
 		patterns := []string{
 			filepath.Join(wikiRoot, "clients", "*", projectName, service+".md"),
@@ -60,7 +73,11 @@ func buildContextOutput(wikiRoot, projectName, service string) (string, error) {
 				if err != nil {
 					continue
 				}
-				return extractServiceSections(entry.Body), nil
+				output := extractServiceSections(entry.Body)
+				if recalled, _ := mem.RecallForContext(context.Background(), projectName, entry.Meta.Customer); recalled != "" {
+					output += recalled
+				}
+				return output, nil
 			}
 		}
 		return "", fmt.Errorf("service %q not found in wiki for project %q", service, projectName)
@@ -83,7 +100,11 @@ func buildContextOutput(wikiRoot, projectName, service string) (string, error) {
 			if err != nil {
 				continue
 			}
-			return extractProjectSections(entry.Body), nil
+			output := extractProjectSections(entry.Body)
+			if recalled, _ := mem.RecallForContext(context.Background(), projectName, entry.Meta.Customer); recalled != "" {
+				output += recalled
+			}
+			return output, nil
 		}
 	}
 	return "", fmt.Errorf("project %q not found in wiki. Run: llmwiki ingest <path>", projectName)

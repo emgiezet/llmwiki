@@ -36,6 +36,10 @@ Requires prior 'absorb' sessions or 'ingest' to populate memory.`,
 				cfg.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")
 			}
 
+			if !cfg.MemoryEnabled {
+				return fmt.Errorf("memory is not enabled — enable memory_enabled: true in ~/.llmwiki/config.yaml")
+			}
+
 			l, err := llm.NewLLM(llm.Config{
 				Backend:         cfg.LLM,
 				OllamaHost:      cfg.OllamaHost,
@@ -44,10 +48,6 @@ Requires prior 'absorb' sessions or 'ingest' to populate memory.`,
 			})
 			if err != nil {
 				return fmt.Errorf("init LLM: %w", err)
-			}
-
-			if !cfg.MemoryEnabled {
-				return fmt.Errorf("memory is not enabled — enable memory_enabled: true in ~/.llmwiki/config.yaml")
 			}
 
 			mem, err := memory.NewFromConfig(cfg)

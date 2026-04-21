@@ -38,6 +38,9 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 				return fmt.Errorf("load project config: %w", err)
 			}
 			cfg := config.Merge(global, projCfg)
+			if cfg.AnthropicAPIKey == "" {
+				cfg.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")
+			}
 
 			projectName := project
 			if projectName == "" {

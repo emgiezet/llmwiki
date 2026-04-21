@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -224,7 +226,7 @@ func writeHookScript(scriptDir string) error {
 
 func loadSettings(path string) (map[string]any, error) {
 	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
+	if errors.Is(err, fs.ErrNotExist) {
 		return map[string]any{}, nil
 	}
 	if err != nil {
@@ -279,7 +281,7 @@ func injectHookEntry(settingsPath, command string) error {
 
 func removeHookEntry(settingsPath string) error {
 	m, err := loadSettings(settingsPath)
-	if os.IsNotExist(err) {
+	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
@@ -291,7 +293,7 @@ func removeHookEntry(settingsPath string) error {
 		return nil
 	}
 	stopHooks, _ := hooks["Stop"].([]any)
-	filtered := stopHooks[:0]
+	filtered := make([]any, 0, len(stopHooks))
 	for _, entry := range stopHooks {
 		if e, ok := entry.(map[string]any); ok {
 			if cmd, ok := e["command"].(string); ok && strings.Contains(cmd, hookEntryMarker) {

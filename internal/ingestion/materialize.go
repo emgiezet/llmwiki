@@ -48,6 +48,7 @@ func MaterializeFromMemory(ctx context.Context, projectName string, cfg config.M
 		OllamaModel:  cfg.OllamaModel,
 		Tags:         tags,
 		LastIngested: time.Now().UTC(),
+		// Path intentionally omitted — MaterializeFromMemory has no projectDir context.
 	}
 	if err := wiki.WriteProjectEntry(wikiPath, meta, "\n"+body+"\n"); err != nil {
 		return fmt.Errorf("write wiki entry: %w", err)

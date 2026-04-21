@@ -199,6 +199,10 @@ Generates a client-level `_index.md` with executive summary, C4 diagram, archite
 |---------|-------------|
 | `ingest <path>` | Scan a project and generate/update wiki entries |
 | `ingest <path> --no-memory` | Ingest without memory recall/storage |
+| `absorb <path>` | Extract session facts into memory (near-zero token cost) |
+| `absorb <path> --note "..."` | Absorb with an explicit session note |
+| `absorb <path> --note-stdin` | Absorb note piped from stdin (used by the Claude Code hook) |
+| `materialize <project>` | Rebuild wiki from accumulated memory facts (~10× cheaper than ingest) |
 | `list` | List all tracked projects |
 | `context <project>` | Print wiki context (pipe into CLAUDE.md) |
 | `query "<question>"` | Ask a question across all wiki entries |
@@ -210,6 +214,9 @@ Generates a client-level `_index.md` with executive summary, C4 diagram, archite
 | `remember --project <name> "<fact>"` | Store a fact in memory |
 | `recall "<query>"` | Recall facts from memory |
 | `recall --project <name> "<query>"` | Recall facts for a specific project |
+| `hook install` | Install llmwiki as a Claude Code plugin |
+| `hook uninstall` | Remove the Claude Code plugin |
+| `hook status` | Check if the Claude Code plugin is installed |
 
 ## Wiki Structure
 
@@ -288,6 +295,66 @@ llmwiki remember --project my-api "billing service was rewritten from PHP to Go 
 llmwiki remember --project my-api "uses custom auth middleware in pkg/auth, not standard library"
 llmwiki recall "which projects use gRPC?"
 ```
+
+## Automatic Session Capture (Claude Code Hook)
+
+Every time Claude reads your code and explains how something works, that understanding exists only in the conversation — it vanishes when the session ends. The Claude Code hook captures it automatically.
+
+### How it works
+
+llmwiki ships as a Claude Code plugin. After installation, a Stop hook fires at the end of every qualifying turn (assistant response >300 chars with at least one file-reading tool call). It reads the session transcript, extracts the last analytical response, and pipes it to `llmwiki absorb` — storing the insight in graymatter memory with zero user action.
+
+Later, regenerate or update the wiki without re-scanning the codebase:
+
+```bash
+llmwiki materialize my-project   # ~5-15K tokens vs 50-100K for full ingest
+```
+
+### Install
+
+```bash
+# Install the Claude Code plugin
+llmwiki hook install
+
+# Check it's active
+llmwiki hook status
+
+# Restart Claude Code — the plugin is auto-discovered
+```
+
+The plugin is written to `~/.claude/plugins/llmwiki/`. Claude Code detects it on next launch.
+
+To remove:
+
+```bash
+llmwiki hook uninstall
+```
+
+### Manual install (if you have the repo)
+
+Symlink the bundled plugin directory instead of running the command:
+
+```bash
+ln -s /path/to/llmwiki/plugin ~/.claude/plugins/llmwiki
+```
+
+### Requirements
+
+- `memory_enabled: true` in `~/.llmwiki/config.yaml`
+- `llmwiki` in your `$PATH` (so the hook script can call it)
+- Python 3 (used by the hook script; standard on macOS and most Linux distros)
+
+### Incremental wiki building
+
+The hook + materialize workflow is designed for ongoing sessions where a full `ingest` run would be too expensive. Facts accumulate silently across sessions; you run `materialize` when you want a refreshed wiki entry.
+
+You can also capture explicit insights during a session:
+
+```bash
+llmwiki remember --project my-api "retry logic uses exponential back-off with jitter in pkg/retry"
+```
+
+---
 
 ## Who This Is For
 

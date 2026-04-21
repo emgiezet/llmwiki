@@ -78,7 +78,7 @@ func TestBuildMaterializePrompt_WithExisting(t *testing.T) {
 	prompt := ingestion.BuildMaterializePrompt("myproject", facts, existing)
 	assert.Contains(t, prompt, facts)
 	assert.Contains(t, prompt, existing)
-	assert.Contains(t, prompt, "update")
+	assert.Contains(t, prompt, "Update the wiki entry")
 	assert.Contains(t, prompt, "CURRENT WIKI ENTRY")
 	assert.Contains(t, prompt, "ACCUMULATED FACTS")
 	assert.NotContains(t, prompt, "PROJECT SCAN")

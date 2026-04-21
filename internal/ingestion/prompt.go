@@ -328,7 +328,7 @@ ACCUMULATED FACTS (new knowledge from recent sessions):
 CURRENT WIKI ENTRY:
 %s
 
-update the wiki entry incorporating new facts. Preserve accurate existing information, correct outdated sections, expand where new facts add detail. Output the complete wiki with ALL sections. Be thorough.
+Update the wiki entry incorporating new facts. Preserve accurate existing information, correct outdated sections, expand where new facts add detail. Output the complete wiki with ALL sections. Be thorough.
 
 ## Domain
 ## Architecture
@@ -337,11 +337,13 @@ update the wiki entry incorporating new facts. Preserve accurate existing inform
 ## Flows
 ## System Diagram
 ## Data Model Diagram
+(Mermaid erDiagram showing key entities. If no schema is known, write "No database schema detected in accumulated facts." instead.)
 ## Integrations
 ## Tech Stack
 ## Configuration
 ## Notes
 ## Tags
+(Comma-separated list of technology and architectural pattern tags. Output ONLY the comma-separated list, no bullets or explanation.)
 
 Output ONLY the markdown sections above. No preamble, no explanation.`,
 		projectName, accumulatedFacts, existingWiki)

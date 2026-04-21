@@ -3,8 +3,10 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/mgz/llmwiki/internal/config"
 	"github.com/mgz/llmwiki/internal/ingestion"
@@ -14,6 +16,7 @@ import (
 
 func NewAbsorbCmd() *cobra.Command {
 	var project, customer, note string
+	var noteStdin bool
 
 	cmd := &cobra.Command{
 		Use:   "absorb <dir>",
@@ -54,6 +57,17 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 				resolvedCustomer = cfg.Customer
 			}
 
+			if note != "" && noteStdin {
+				return fmt.Errorf("cannot combine --note and --note-stdin")
+			}
+			if noteStdin {
+				data, err := io.ReadAll(os.Stdin)
+				if err != nil {
+					return fmt.Errorf("read stdin: %w", err)
+				}
+				note = strings.TrimSpace(string(data))
+			}
+
 			if !cfg.MemoryEnabled {
 				fmt.Fprintln(os.Stderr, "warning: memory not enabled — facts not stored. Set memory_enabled: true in ~/.llmwiki/config.yaml")
 				return nil
@@ -81,5 +95,6 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 	cmd.Flags().StringVar(&project, "project", "", "Project name (defaults to directory basename)")
 	cmd.Flags().StringVar(&customer, "customer", "", "Customer name (defaults to llmwiki.yaml customer)")
 	cmd.Flags().StringVar(&note, "note", "", "Free-form description of what was worked on this session")
+	cmd.Flags().BoolVar(&noteStdin, "note-stdin", false, "Read the session note from stdin (use when piping from hook scripts)")
 	return cmd
 }

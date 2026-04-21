@@ -51,19 +51,27 @@ def extract_last_response(transcript_path):
         except json.JSONDecodeError:
             continue
 
-        role = msg.get("role", "")
-        name = msg.get("name", msg.get("tool_name", ""))
-        if name in ANALYTICAL_TOOLS:
-            recent_tools.add(name)
+        entry_type = msg.get("type", "")
+        inner = msg.get("message")
+        if not isinstance(inner, dict):
+            inner = msg
 
-        if role == "assistant":
-            content = msg.get("content", "")
-            if isinstance(content, str):
-                last_text = content
-            elif isinstance(content, list):
-                for block in content:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        last_text = block.get("text", last_text)
+        content = inner.get("content", "")
+        is_assistant = entry_type == "assistant" or inner.get("role") == "assistant"
+
+        if isinstance(content, list):
+            for block in content:
+                if not isinstance(block, dict):
+                    continue
+                block_type = block.get("type", "")
+                if block_type == "text" and is_assistant:
+                    last_text = block.get("text", last_text)
+                elif block_type == "tool_use":
+                    tname = block.get("name", "")
+                    if tname in ANALYTICAL_TOOLS:
+                        recent_tools.add(tname)
+        elif isinstance(content, str) and is_assistant:
+            last_text = content
 
     return last_text, recent_tools
 

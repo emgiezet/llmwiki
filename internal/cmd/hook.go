@@ -1,14 +1,12 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -110,7 +108,32 @@ if __name__ == "__main__":
     main()
 `
 
-const hookEntryMarker = "stop-hook.py"
+const pluginManifest = `{
+  "name": "llmwiki",
+  "description": "Captures analytical Claude Code sessions into graymatter memory via llmwiki absorb",
+  "author": {
+    "name": "Max Małecki"
+  },
+  "version": "1.0.0"
+}
+`
+
+const hooksConfig = `{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/stop-hook.py",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
+`
 
 func NewHookCmd() *cobra.Command {
 	hook := &cobra.Command{
@@ -121,36 +144,51 @@ func NewHookCmd() *cobra.Command {
 	return hook
 }
 
+func defaultPluginDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".claude", "plugins", "llmwiki")
+}
+
+func writePlugin(pluginDir string) error {
+	manifestDir := filepath.Join(pluginDir, ".claude-plugin")
+	if err := os.MkdirAll(manifestDir, 0755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(manifestDir, "plugin.json"), []byte(pluginManifest), 0644); err != nil {
+		return err
+	}
+
+	hooksDir := filepath.Join(pluginDir, "hooks")
+	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(hooksDir, "hooks.json"), []byte(hooksConfig), 0644); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(hooksDir, "stop-hook.py"), []byte(stopHookScript), 0755)
+}
+
 func newHookInstallCmd() *cobra.Command {
-	var settingsPath, scriptDir string
+	var pluginDir string
 	var showSnippet bool
 
 	cmd := &cobra.Command{
 		Use:   "install",
-		Short: "Write stop-hook.py and register it in Claude Code settings.json",
+		Short: "Install llmwiki as a Claude Code plugin (auto-discovered, no settings.json edit needed)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if settingsPath == "" {
-				settingsPath = defaultSettingsPath()
-			}
-			if scriptDir == "" {
-				scriptDir = defaultScriptDir()
+			if pluginDir == "" {
+				pluginDir = defaultPluginDir()
 			}
 
-			if err := writeHookScript(scriptDir); err != nil {
-				return fmt.Errorf("write hook script: %w", err)
-			}
-
-			scriptPath := filepath.Join(scriptDir, "stop-hook.py")
-			command := "python3 " + scriptPath
-			if err := injectHookEntry(settingsPath, command); err != nil {
-				return fmt.Errorf("update settings.json: %w", err)
+			if err := writePlugin(pluginDir); err != nil {
+				return fmt.Errorf("write plugin: %w", err)
 			}
 
 			if _, err := exec.LookPath("llmwiki"); err != nil {
 				fmt.Fprintln(cmd.ErrOrStderr(), "warning: 'llmwiki' not found in PATH — add it before using the hook")
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Hook installed.\n  Script:   %s\n  Settings: %s\n", scriptPath, settingsPath)
+			fmt.Fprintf(cmd.OutOrStdout(), "Plugin installed at %s\nRestart Claude Code to activate.\n", pluginDir)
 
 			if showSnippet {
 				fmt.Fprintln(cmd.OutOrStdout(), claudeMDSnippet())
@@ -159,178 +197,60 @@ func newHookInstallCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&settingsPath, "settings", "", "Path to Claude Code settings.json (default: ~/.claude/settings.json)")
-	cmd.Flags().StringVar(&scriptDir, "script-dir", "", "Directory to write stop-hook.py (default: ~/.llmwiki/hooks)")
+	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Plugin installation directory (default: ~/.claude/plugins/llmwiki)")
 	cmd.Flags().BoolVar(&showSnippet, "show-snippet", false, "Print recommended CLAUDE.md addition")
 	return cmd
 }
 
 func newHookUninstallCmd() *cobra.Command {
-	var settingsPath string
+	var pluginDir string
 
 	cmd := &cobra.Command{
 		Use:   "uninstall",
-		Short: "Remove the llmwiki Stop hook entry from Claude Code settings.json",
+		Short: "Remove the llmwiki Claude Code plugin",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if settingsPath == "" {
-				settingsPath = defaultSettingsPath()
+			if pluginDir == "" {
+				pluginDir = defaultPluginDir()
 			}
-			if err := removeHookEntry(settingsPath); err != nil {
-				return fmt.Errorf("update settings.json: %w", err)
+			if err := os.RemoveAll(pluginDir); err != nil {
+				return fmt.Errorf("remove plugin: %w", err)
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), "Hook uninstalled from settings.json (script not deleted).")
+			fmt.Fprintln(cmd.OutOrStdout(), "Plugin uninstalled.")
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&settingsPath, "settings", "", "Path to Claude Code settings.json (default: ~/.claude/settings.json)")
+	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Plugin directory to remove (default: ~/.claude/plugins/llmwiki)")
 	return cmd
 }
 
 func newHookStatusCmd() *cobra.Command {
-	var settingsPath string
+	var pluginDir string
 
 	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show whether the llmwiki Stop hook is installed",
+		Short: "Show whether the llmwiki Claude Code plugin is installed",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if settingsPath == "" {
-				settingsPath = defaultSettingsPath()
+			if pluginDir == "" {
+				pluginDir = defaultPluginDir()
 			}
-			installed, err := hookIsInstalled(settingsPath)
+			manifestPath := filepath.Join(pluginDir, ".claude-plugin", "plugin.json")
+			_, err := os.Stat(manifestPath)
 			if err != nil {
-				fmt.Fprintln(cmd.OutOrStdout(), "not installed (settings.json not found or unreadable)")
+				if errors.Is(err, fs.ErrNotExist) {
+					fmt.Fprintln(cmd.OutOrStdout(), "not installed")
+				} else {
+					fmt.Fprintf(cmd.OutOrStdout(), "not installed (could not read plugin dir: %v)\n", err)
+				}
 				return nil
 			}
-			if installed {
-				fmt.Fprintf(cmd.OutOrStdout(), "installed: %s\n", settingsPath)
-			} else {
-				fmt.Fprintln(cmd.OutOrStdout(), "not installed")
-			}
+			fmt.Fprintf(cmd.OutOrStdout(), "installed: %s\n", pluginDir)
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&settingsPath, "settings", "", "Path to Claude Code settings.json (default: ~/.claude/settings.json)")
+	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Plugin directory to check (default: ~/.claude/plugins/llmwiki)")
 	return cmd
-}
-
-func defaultSettingsPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".claude", "settings.json")
-}
-
-func defaultScriptDir() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".llmwiki", "hooks")
-}
-
-func writeHookScript(scriptDir string) error {
-	if err := os.MkdirAll(scriptDir, 0755); err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(scriptDir, "stop-hook.py"), []byte(stopHookScript), 0755)
-}
-
-func loadSettings(path string) (map[string]any, error) {
-	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return map[string]any{}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	var m map[string]any
-	if err := json.Unmarshal(data, &m); err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
-	}
-	return m, nil
-}
-
-func saveSettings(path string, m map[string]any) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(m, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, append(data, '\n'), 0644)
-}
-
-func injectHookEntry(settingsPath, command string) error {
-	m, err := loadSettings(settingsPath)
-	if err != nil {
-		return err
-	}
-
-	hooks, _ := m["hooks"].(map[string]any)
-	if hooks == nil {
-		hooks = map[string]any{}
-	}
-	stopHooks, _ := hooks["Stop"].([]any)
-
-	for _, entry := range stopHooks {
-		if e, ok := entry.(map[string]any); ok {
-			if cmd, ok := e["command"].(string); ok && strings.Contains(cmd, hookEntryMarker) {
-				return nil // already installed
-			}
-		}
-	}
-
-	hooks["Stop"] = append(stopHooks, map[string]any{
-		"type":    "command",
-		"command": command,
-		"timeout": 30,
-	})
-	m["hooks"] = hooks
-	return saveSettings(settingsPath, m)
-}
-
-func removeHookEntry(settingsPath string) error {
-	m, err := loadSettings(settingsPath)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	hooks, _ := m["hooks"].(map[string]any)
-	if hooks == nil {
-		return nil
-	}
-	stopHooks, _ := hooks["Stop"].([]any)
-	filtered := make([]any, 0, len(stopHooks))
-	for _, entry := range stopHooks {
-		if e, ok := entry.(map[string]any); ok {
-			if cmd, ok := e["command"].(string); ok && strings.Contains(cmd, hookEntryMarker) {
-				continue
-			}
-		}
-		filtered = append(filtered, entry)
-	}
-
-	hooks["Stop"] = filtered
-	m["hooks"] = hooks
-	return saveSettings(settingsPath, m)
-}
-
-func hookIsInstalled(settingsPath string) (bool, error) {
-	m, err := loadSettings(settingsPath)
-	if err != nil {
-		return false, err
-	}
-	hooks, _ := m["hooks"].(map[string]any)
-	stopHooks, _ := hooks["Stop"].([]any)
-	for _, entry := range stopHooks {
-		if e, ok := entry.(map[string]any); ok {
-			if cmd, ok := e["command"].(string); ok && strings.Contains(cmd, hookEntryMarker) {
-				return true, nil
-			}
-		}
-	}
-	return false, nil
 }
 
 func claudeMDSnippet() string {

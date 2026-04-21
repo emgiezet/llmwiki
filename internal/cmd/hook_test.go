@@ -1,7 +1,8 @@
 package cmd_test
 
 import (
-	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,126 +12,76 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func writeFakeSettings(t *testing.T, dir string, content map[string]any) string {
-	t.Helper()
-	claudeDir := filepath.Join(dir, ".claude")
-	require.NoError(t, os.MkdirAll(claudeDir, 0755))
-	path := filepath.Join(claudeDir, "settings.json")
-	data, _ := json.MarshalIndent(content, "", "  ")
-	require.NoError(t, os.WriteFile(path, data, 0644))
-	return path
-}
-
-func TestHookInstall_WritesScriptAndModifiesSettings(t *testing.T) {
-	homeDir := t.TempDir()
-	settingsPath := writeFakeSettings(t, homeDir, map[string]any{
-		"model": "sonnet",
-	})
-	scriptDir := filepath.Join(homeDir, ".llmwiki", "hooks")
+func TestHookInstall_WritesPluginStructure(t *testing.T) {
+	pluginDir := filepath.Join(t.TempDir(), "llmwiki")
 
 	root := buildTestRoot()
-	root.SetArgs([]string{"hook", "install",
-		"--settings", settingsPath,
-		"--script-dir", scriptDir,
-	})
+	root.SetArgs([]string{"hook", "install", "--plugin-dir", pluginDir})
 	require.NoError(t, root.Execute())
 
-	// Script must exist and contain key phrases.
-	scriptPath := filepath.Join(scriptDir, "stop-hook.py")
-	data, err := os.ReadFile(scriptPath)
+	manifestData, err := os.ReadFile(filepath.Join(pluginDir, ".claude-plugin", "plugin.json"))
 	require.NoError(t, err)
-	assert.Contains(t, string(data), "llmwiki absorb")
-	assert.Contains(t, string(data), "MIN_RESPONSE_CHARS")
+	assert.Contains(t, string(manifestData), `"name"`)
 
-	// settings.json must contain Stop hook entry.
-	raw, err := os.ReadFile(settingsPath)
+	hooksData, err := os.ReadFile(filepath.Join(pluginDir, "hooks", "hooks.json"))
 	require.NoError(t, err)
-	var settings map[string]any
-	require.NoError(t, json.Unmarshal(raw, &settings))
-	// Existing keys must survive.
-	assert.Equal(t, "sonnet", settings["model"])
-	hooks := settings["hooks"].(map[string]any)
-	stopHooks := hooks["Stop"].([]any)
-	require.Len(t, stopHooks, 1)
-	entry := stopHooks[0].(map[string]any)
-	assert.Equal(t, "command", entry["type"])
-	assert.Contains(t, entry["command"].(string), "stop-hook.py")
-	assert.Equal(t, float64(30), entry["timeout"])
+	assert.Contains(t, string(hooksData), "Stop")
+	assert.Contains(t, string(hooksData), "${CLAUDE_PLUGIN_ROOT}")
+
+	scriptData, err := os.ReadFile(filepath.Join(pluginDir, "hooks", "stop-hook.py"))
+	require.NoError(t, err)
+	assert.Contains(t, string(scriptData), "llmwiki absorb")
+	assert.Contains(t, string(scriptData), "MIN_RESPONSE_CHARS")
 }
 
 func TestHookInstall_Idempotent(t *testing.T) {
-	homeDir := t.TempDir()
-	settingsPath := writeFakeSettings(t, homeDir, map[string]any{})
-	scriptDir := filepath.Join(homeDir, ".llmwiki", "hooks")
+	pluginDir := filepath.Join(t.TempDir(), "llmwiki")
 
 	for i := 0; i < 2; i++ {
 		root := buildTestRoot()
-		root.SetArgs([]string{"hook", "install",
-			"--settings", settingsPath,
-			"--script-dir", scriptDir,
-		})
+		root.SetArgs([]string{"hook", "install", "--plugin-dir", pluginDir})
 		require.NoError(t, root.Execute())
 	}
 
-	raw, _ := os.ReadFile(settingsPath)
-	var settings map[string]any
-	require.NoError(t, json.Unmarshal(raw, &settings))
-	stopHooks := settings["hooks"].(map[string]any)["Stop"].([]any)
-	assert.Len(t, stopHooks, 1, "double install must not duplicate entry")
+	_, err := os.Stat(filepath.Join(pluginDir, ".claude-plugin", "plugin.json"))
+	require.NoError(t, err, "plugin manifest must exist after double install")
 }
 
-func TestHookUninstall_RemovesEntry(t *testing.T) {
-	homeDir := t.TempDir()
-	settingsPath := writeFakeSettings(t, homeDir, map[string]any{
-		"model": "sonnet",
-		"hooks": map[string]any{
-			"Stop": []any{
-				map[string]any{"type": "command", "command": "python3 /home/.llmwiki/hooks/stop-hook.py", "timeout": 30},
-			},
-		},
-	})
+func TestHookUninstall_RemovesPluginDir(t *testing.T) {
+	pluginDir := filepath.Join(t.TempDir(), "llmwiki")
+	manifestDir := filepath.Join(pluginDir, ".claude-plugin")
+	require.NoError(t, os.MkdirAll(manifestDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(manifestDir, "plugin.json"), []byte(`{"name":"llmwiki"}`), 0644))
 
 	root := buildTestRoot()
-	root.SetArgs([]string{"hook", "uninstall", "--settings", settingsPath})
+	root.SetArgs([]string{"hook", "uninstall", "--plugin-dir", pluginDir})
 	require.NoError(t, root.Execute())
 
-	raw, _ := os.ReadFile(settingsPath)
-	var settings map[string]any
-	require.NoError(t, json.Unmarshal(raw, &settings))
-	assert.Equal(t, "sonnet", settings["model"])
-	if hooks, ok := settings["hooks"].(map[string]any); ok {
-		if stop, ok := hooks["Stop"].([]any); ok {
-			assert.Empty(t, stop)
-		}
-	}
+	_, err := os.Stat(pluginDir)
+	assert.True(t, errors.Is(err, fs.ErrNotExist), "plugin dir must be removed after uninstall")
 }
 
 func TestHookStatus_Installed(t *testing.T) {
-	homeDir := t.TempDir()
-	settingsPath := writeFakeSettings(t, homeDir, map[string]any{
-		"hooks": map[string]any{
-			"Stop": []any{
-				map[string]any{"type": "command", "command": "python3 ~/.llmwiki/hooks/stop-hook.py"},
-			},
-		},
-	})
+	pluginDir := filepath.Join(t.TempDir(), "llmwiki")
+	manifestDir := filepath.Join(pluginDir, ".claude-plugin")
+	require.NoError(t, os.MkdirAll(manifestDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(manifestDir, "plugin.json"), []byte(`{"name":"llmwiki"}`), 0644))
 
 	var buf strings.Builder
 	root := buildTestRoot()
 	root.SetOut(&buf)
-	root.SetArgs([]string{"hook", "status", "--settings", settingsPath})
+	root.SetArgs([]string{"hook", "status", "--plugin-dir", pluginDir})
 	require.NoError(t, root.Execute())
 	assert.Contains(t, buf.String(), "installed")
 }
 
 func TestHookStatus_NotInstalled(t *testing.T) {
-	homeDir := t.TempDir()
-	settingsPath := writeFakeSettings(t, homeDir, map[string]any{})
+	pluginDir := filepath.Join(t.TempDir(), "llmwiki-nonexistent")
 
 	var buf strings.Builder
 	root := buildTestRoot()
 	root.SetOut(&buf)
-	root.SetArgs([]string{"hook", "status", "--settings", settingsPath})
+	root.SetArgs([]string{"hook", "status", "--plugin-dir", pluginDir})
 	require.NoError(t, root.Execute())
 	assert.Contains(t, buf.String(), "not installed")
 }

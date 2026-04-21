@@ -266,3 +266,83 @@ PROJECT SCAN (current state of the codebase):
 Output ONLY the markdown content. No preamble, no explanation, no wrapping code fences.`,
 		targetFile, projectName, scanSummary, wikiNote, memoryNote, existingNote, targetFile, targetFile)
 }
+
+// BuildMaterializePrompt builds the LLM prompt for generating/updating a wiki entry
+// from accumulated graymatter memory facts — no file scanning required.
+func BuildMaterializePrompt(projectName, accumulatedFacts, existingWiki string) string {
+	if existingWiki == "" {
+		return fmt.Sprintf(`You are creating a technical wiki entry from accumulated session facts.
+Project: %s
+
+ACCUMULATED FACTS (learned from development sessions over time):
+%s
+
+Generate a wiki entry using EXACTLY these markdown sections. Be thorough and detailed — this wiki is a reference for engineers joining the project. Write in a factual, technical style. Infer reasonable architectural implications from the facts but do not speculate beyond them.
+
+## Domain
+(Business context: what this project does, what problems it solves, who uses it, what business domain it operates in.)
+
+## Architecture
+(How the system is structured: key design patterns, module organization, runtime topology.)
+
+## Services
+(List each service or major component. Format: "- **service-name** — description")
+
+## Features
+(Key capabilities and user-facing functionality.)
+
+## Flows
+(Key end-to-end workflows. Use arrows: "A → B → C".)
+
+## System Diagram
+(Mermaid flowchart showing services/components and external integrations. Use flowchart TD or LR.)
+
+## Data Model Diagram
+(Mermaid erDiagram showing key entities. If no schema is known, write "No database schema detected in accumulated facts." instead.)
+
+## Integrations
+(External systems this project connects to: databases, message queues, external APIs, observability.)
+
+## Tech Stack
+(Languages, frameworks, infrastructure components, deployment tooling.)
+
+## Configuration
+(Key environment variables and their purpose. Required vs. optional.)
+
+## Notes
+(Architectural decisions, trade-offs, gotchas, known issues, anything a new engineer should know.)
+
+## Tags
+(Comma-separated list of technology and architectural pattern tags. Output ONLY the comma-separated list, no bullets or explanation.)
+
+Output ONLY the markdown sections above. No preamble, no explanation.`,
+			projectName, accumulatedFacts)
+	}
+
+	return fmt.Sprintf(`You are updating a technical wiki entry with new facts from development sessions.
+Project: %s
+
+ACCUMULATED FACTS (new knowledge from recent sessions):
+%s
+
+CURRENT WIKI ENTRY:
+%s
+
+update the wiki entry incorporating new facts. Preserve accurate existing information, correct outdated sections, expand where new facts add detail. Output the complete wiki with ALL sections. Be thorough.
+
+## Domain
+## Architecture
+## Services
+## Features
+## Flows
+## System Diagram
+## Data Model Diagram
+## Integrations
+## Tech Stack
+## Configuration
+## Notes
+## Tags
+
+Output ONLY the markdown sections above. No preamble, no explanation.`,
+		projectName, accumulatedFacts, existingWiki)
+}

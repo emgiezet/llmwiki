@@ -51,3 +51,35 @@ func TestBuildServicePrompt_IncludesScan(t *testing.T) {
 	assert.Contains(t, prompt, "thorough")
 	assert.NotContains(t, prompt, "Be concise")
 }
+
+func TestBuildMaterializePrompt_FromScratch(t *testing.T) {
+	facts := "Uses Go. Runs on Kubernetes. RabbitMQ for messaging."
+	prompt := ingestion.BuildMaterializePrompt("myproject", facts, "")
+	assert.Contains(t, prompt, "myproject")
+	assert.Contains(t, prompt, facts)
+	assert.Contains(t, prompt, "## Domain")
+	assert.Contains(t, prompt, "## Architecture")
+	assert.Contains(t, prompt, "## Services")
+	assert.Contains(t, prompt, "## Features")
+	assert.Contains(t, prompt, "## Flows")
+	assert.Contains(t, prompt, "## Integrations")
+	assert.Contains(t, prompt, "## Tech Stack")
+	assert.Contains(t, prompt, "## Configuration")
+	assert.Contains(t, prompt, "## Notes")
+	assert.Contains(t, prompt, "## Tags")
+	assert.Contains(t, prompt, "thorough")
+	assert.NotContains(t, prompt, "PROJECT SCAN")
+	assert.NotContains(t, prompt, "CURRENT WIKI ENTRY")
+}
+
+func TestBuildMaterializePrompt_WithExisting(t *testing.T) {
+	facts := "Now also uses Redis."
+	existing := "## Domain\nOld description.\n## Architecture\nMonolith."
+	prompt := ingestion.BuildMaterializePrompt("myproject", facts, existing)
+	assert.Contains(t, prompt, facts)
+	assert.Contains(t, prompt, existing)
+	assert.Contains(t, prompt, "update")
+	assert.Contains(t, prompt, "CURRENT WIKI ENTRY")
+	assert.Contains(t, prompt, "ACCUMULATED FACTS")
+	assert.NotContains(t, prompt, "PROJECT SCAN")
+}

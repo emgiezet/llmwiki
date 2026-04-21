@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,6 +39,8 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 				return fmt.Errorf("load project config: %w", err)
 			}
 			cfg := config.Merge(global, projCfg)
+			// AnthropicAPIKey is forwarded to memory.NewFromConfig so graymatter can use
+			// the Anthropic embedding backend for semantic fact storage.
 			if cfg.AnthropicAPIKey == "" {
 				cfg.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")
 			}
@@ -63,6 +66,10 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 			defer mem.Close()
 
 			if err := ingestion.AbsorbSession(cmd.Context(), projectDir, projectName, resolvedCustomer, note, mem); err != nil {
+				if errors.Is(err, ingestion.ErrNothingToAbsorb) {
+					fmt.Fprintln(os.Stderr, "warning: nothing to absorb — no git history found and no --note provided")
+					return nil
+				}
 				return err
 			}
 

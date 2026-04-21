@@ -2,12 +2,16 @@ package ingestion
 
 import (
 	"context"
+	"errors"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/mgz/llmwiki/internal/memory"
 )
+
+// ErrNothingToAbsorb is returned when no git history is found and no --note is provided.
+var ErrNothingToAbsorb = errors.New("nothing to absorb: no git history found and no --note provided")
 
 // AbsorbSession extracts facts from a work session into graymatter memory without
 // generating a wiki entry. Near-zero direct LLM cost — graymatter handles extraction async.
@@ -36,7 +40,7 @@ func AbsorbSession(ctx context.Context, projectDir, projectName, customer, note 
 	}
 
 	if len(parts) == 0 {
-		return nil
+		return ErrNothingToAbsorb
 	}
 
 	return mem.RememberIngestion(ctx, projectName, customer, strings.Join(parts, "\n\n"), nil)

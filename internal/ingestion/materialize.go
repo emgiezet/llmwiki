@@ -15,7 +15,7 @@ import (
 // MaterializeFromMemory rebuilds or updates a project wiki entry using only accumulated
 // graymatter facts — no file scanning. Cost: ~5-15K tokens vs 50-100K for full ingest.
 func MaterializeFromMemory(ctx context.Context, projectName string, cfg config.Merged, l llm.LLM, mem *memory.Store) error {
-	if !mem.Enabled() {
+	if mem == nil || !mem.Enabled() {
 		return fmt.Errorf("memory is not enabled — run 'llmwiki absorb' during sessions first and enable memory_enabled: true in config")
 	}
 

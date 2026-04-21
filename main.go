@@ -24,6 +24,8 @@ func main() {
 		cmd.NewRememberCmd(),
 		cmd.NewRecallCmd(),
 		cmd.NewDocsCmd(),
+		cmd.NewAbsorbCmd(),
+		cmd.NewMaterializeCmd(),
 	)
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

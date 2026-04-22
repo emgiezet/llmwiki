@@ -7,7 +7,14 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
+
+// ollamaHTTPClient is a package-level client with a bounded timeout so that
+// hung Ollama servers cannot block the process indefinitely.
+var ollamaHTTPClient = &http.Client{
+	Timeout: 2 * time.Minute,
+}
 
 type OllamaLLM struct{ host, model string }
 
@@ -29,7 +36,7 @@ func (l *OllamaLLM) Generate(ctx context.Context, prompt string) (string, error)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := ollamaHTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("ollama request failed: %w", err)
 	}

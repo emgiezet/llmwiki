@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 type ClaudeCodeLLM struct{}
@@ -15,6 +16,11 @@ func NewClaudeCodeLLM() LLM { return &ClaudeCodeLLM{} }
 // Generate shells out to `claude -p <prompt>`.
 // Requires claude CLI to be installed and authenticated.
 func (l *ClaudeCodeLLM) Generate(ctx context.Context, prompt string) (string, error) {
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Minute)
+		defer cancel()
+	}
 	cmd := exec.CommandContext(ctx, "claude", "-p", prompt)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

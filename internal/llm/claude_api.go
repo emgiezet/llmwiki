@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
@@ -16,6 +17,11 @@ func NewClaudeAPILLM(apiKey string) LLM {
 }
 
 func (l *ClaudeAPILLM) Generate(ctx context.Context, prompt string) (string, error) {
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Minute)
+		defer cancel()
+	}
 	msg, err := l.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaudeSonnet4_6,
 		MaxTokens: 8192,

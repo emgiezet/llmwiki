@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/mgz/llmwiki/internal/llm"
 	"github.com/stretchr/testify/assert"
@@ -71,4 +72,49 @@ func TestOllamaLLM_Generate(t *testing.T) {
 	result, err := l.Generate(context.Background(), "describe this project")
 	require.NoError(t, err)
 	assert.Equal(t, "## Domain\nOllama response.", result)
+}
+
+// TestOllamaLLM_ContextCancellation verifies that the Ollama client respects
+// context cancellation/deadline and does not hang indefinitely on a slow server.
+func TestOllamaLLM_ContextCancellation(t *testing.T) {
+	// Server that hangs forever (simulates a stuck Ollama instance)
+	hanging := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-hanging // block until test ends
+	}))
+	defer server.Close()
+	defer close(hanging)
+
+	l := llm.NewOllamaLLM(server.URL, "llama3.2")
+
+	// Use a short deadline to keep the test fast
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := l.Generate(ctx, "describe this project")
+	elapsed := time.Since(start)
+
+	require.Error(t, err, "expected error due to context deadline")
+	assert.Less(t, elapsed, 2*time.Second, "should have returned well before the 2-minute client timeout")
+}
+
+// TestNewLLM_OllamaRejectsRemoteHost verifies D4: remote Ollama hosts are
+// rejected by default and accepted when AllowRemoteOllama is set.
+func TestNewLLM_OllamaRejectsRemoteHost(t *testing.T) {
+	_, err := llm.NewLLM(llm.Config{
+		Backend:    "ollama",
+		OllamaHost: "http://169.254.169.254/latest/meta-data/",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "loopback")
+
+	// With AllowRemoteOllama the same host is accepted
+	l, err := llm.NewLLM(llm.Config{
+		Backend:           "ollama",
+		OllamaHost:        "http://169.254.169.254/latest/meta-data/",
+		AllowRemoteOllama: true,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, l)
 }

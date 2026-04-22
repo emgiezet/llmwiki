@@ -118,7 +118,7 @@ def main():
                 log_path = os.path.join(os.path.expanduser("~"), ".llmwiki", "hook.log")
                 os.makedirs(os.path.dirname(log_path), exist_ok=True)
                 with open(log_path, "a", encoding="utf-8") as logf:
-                    logf.write(result.stderr)
+                    logf.write(f"{os.path.basename(__file__)}: {result.stderr}")
         except Exception:
             pass
     except Exception as exc:

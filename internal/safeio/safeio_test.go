@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mgz/llmwiki/internal/safeio"
+	"github.com/emgiezet/llmwiki/internal/safeio"
 )
 
 func TestReadRegularFile_ReadsNormalFile(t *testing.T) {

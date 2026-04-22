@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mgz/llmwiki/internal/ingestion"
-	"github.com/mgz/llmwiki/internal/memory"
+	"github.com/emgiezet/llmwiki/internal/ingestion"
+	"github.com/emgiezet/llmwiki/internal/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

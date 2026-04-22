@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mgz/llmwiki/internal/wiki"
+	"github.com/emgiezet/llmwiki/internal/wiki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

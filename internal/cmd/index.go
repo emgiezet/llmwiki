@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mgz/llmwiki/internal/config"
-	"github.com/mgz/llmwiki/internal/ingestion"
-	"github.com/mgz/llmwiki/internal/llm"
-	"github.com/mgz/llmwiki/internal/validation"
+	"github.com/emgiezet/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/ingestion"
+	"github.com/emgiezet/llmwiki/internal/llm"
+	"github.com/emgiezet/llmwiki/internal/validation"
 	"github.com/spf13/cobra"
 )
 

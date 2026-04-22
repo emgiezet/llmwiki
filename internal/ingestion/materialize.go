@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/mgz/llmwiki/internal/config"
-	"github.com/mgz/llmwiki/internal/llm"
-	"github.com/mgz/llmwiki/internal/memory"
-	"github.com/mgz/llmwiki/internal/wiki"
+	"github.com/emgiezet/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/llm"
+	"github.com/emgiezet/llmwiki/internal/memory"
+	"github.com/emgiezet/llmwiki/internal/wiki"
 )
 
 // MaterializeFromMemory rebuilds or updates a project wiki entry using only accumulated

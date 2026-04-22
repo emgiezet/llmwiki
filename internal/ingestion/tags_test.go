@@ -3,7 +3,7 @@ package ingestion_test
 import (
 	"testing"
 
-	"github.com/mgz/llmwiki/internal/ingestion"
+	"github.com/emgiezet/llmwiki/internal/ingestion"
 	"github.com/stretchr/testify/assert"
 )
 

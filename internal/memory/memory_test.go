@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mgz/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/config"
 )
 
 // TestClose_NoDeadlock verifies that Store.Close returns within a reasonable

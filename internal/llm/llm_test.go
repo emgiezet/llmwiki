@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mgz/llmwiki/internal/llm"
+	"github.com/emgiezet/llmwiki/internal/llm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -68,7 +68,7 @@ func TestOllamaLLM_Generate(t *testing.T) {
 	}))
 	defer server.Close()
 
-	l := llm.NewOllamaLLM(server.URL, "llama3.2")
+	l := llm.NewOllamaLLM(server.URL, "llama3.2", 0)
 	result, err := l.Generate(context.Background(), "describe this project")
 	require.NoError(t, err)
 	assert.Equal(t, "## Domain\nOllama response.", result)
@@ -85,7 +85,7 @@ func TestOllamaLLM_ContextCancellation(t *testing.T) {
 	defer server.Close()
 	defer close(hanging)
 
-	l := llm.NewOllamaLLM(server.URL, "llama3.2")
+	l := llm.NewOllamaLLM(server.URL, "llama3.2", 0)
 
 	// Use a short deadline to keep the test fast
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)

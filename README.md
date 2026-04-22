@@ -117,12 +117,47 @@ flowchart LR
 
 Facts decay over time (30-day half-life) and consolidate in the background. Embedding search uses whatever's available: Ollama → OpenAI → Anthropic → keyword-only fallback.
 
+## Install
+
+Builds are published for macOS (arm64, amd64) and Linux (amd64, arm64).
+
+**One-liner (recommended)**
+```bash
+curl -fsSL https://raw.githubusercontent.com/emgiezet/llmwiki/main/install.sh | sh
+```
+Installs the latest release to `~/.local/bin/llmwiki`. If that directory isn't on your `$PATH`, the installer prints the exact `export PATH=…` line to add.
+
+**Pinned version**
+```bash
+curl -fsSL https://raw.githubusercontent.com/emgiezet/llmwiki/main/install.sh | VERSION=v0.5.0 sh
+```
+
+**Custom install directory**
+```bash
+curl -fsSL https://raw.githubusercontent.com/emgiezet/llmwiki/main/install.sh | INSTALL_DIR=/usr/local/bin sh
+```
+
+**Manual download** — grab `llmwiki_<version>_<os>_<arch>.tar.gz` from the [Releases page](https://github.com/emgiezet/llmwiki/releases), verify the SHA256 against `checksums.txt`, extract, and move `llmwiki` into your `$PATH`.
+
+**Go users**
+```bash
+go install github.com/emgiezet/llmwiki@latest
+```
+
+### Updating
+
+`llmwiki` checks GitHub once every 24 hours (cached, non-blocking) and prints a one-line notice on stderr when a newer release exists:
+```
+llmwiki 0.5.1 available (you have 0.5.0) — run 'llmwiki update' to install.
+```
+
+Run `llmwiki update` to upgrade. The subcommand detects how the binary was installed and re-runs the installer script for release binaries, or `go install` for Go-managed installs. Supports `--version vX.Y.Z` to pin and `--dry-run` to preview.
+
+The notice is suppressed in CI, non-TTY output, dev builds, and when `LLMWIKI_NO_UPDATE_CHECK=1` is set.
+
 ## Quick Start
 
 ```bash
-# Install
-go install github.com/emgiezet/llmwiki@latest
-
 # Ingest a project
 llmwiki ingest ~/workspace/my-project
 
@@ -392,6 +427,19 @@ locally with `make security-scan`.
 - **Developers using AI assistants** who are tired of re-explaining project structure every session
 - **Teams onboarding new engineers** who want a "read this first" that writes itself
 - **Anyone** who has ever thought "I'll document this later" and never did
+
+## Releases
+
+Releases are cut automatically from commit history on `main`:
+
+- **`feat:`** — new feature → minor bump (`0.4.0 → 0.5.0`)
+- **`fix:`** — bug fix → patch bump (`0.5.0 → 0.5.1`)
+- **`feat!:`** or `BREAKING CHANGE:` in the body → major bump (`0.5.0 → 1.0.0`)
+- Anything else (`docs:`, `chore:`, `refactor:`, …) ships silently with the next tagged release.
+
+[release-please](https://github.com/googleapis/release-please) maintains a running "Release PR" that accumulates unreleased commits. Merging that PR creates the git tag and GitHub Release; the release workflow then builds binaries for all four target platforms and attaches them along with `checksums.txt` and `install.sh`.
+
+See all releases: [github.com/emgiezet/llmwiki/releases](https://github.com/emgiezet/llmwiki/releases).
 
 ## License
 

@@ -16,16 +16,25 @@ var ollamaHTTPClient = &http.Client{
 	Timeout: 2 * time.Minute,
 }
 
-type OllamaLLM struct{ host, model string }
+type OllamaLLM struct {
+	host, model string
+	maxTokens   int
+}
 
-func NewOllamaLLM(host, model string) LLM { return &OllamaLLM{host: host, model: model} }
+func NewOllamaLLM(host, model string, maxTokens int) LLM {
+	return &OllamaLLM{host: host, model: model, maxTokens: maxTokens}
+}
 
 func (l *OllamaLLM) Generate(ctx context.Context, prompt string) (string, error) {
-	body, err := json.Marshal(map[string]interface{}{
+	payload := map[string]interface{}{
 		"model":  l.model,
 		"prompt": prompt,
 		"stream": false,
-	})
+	}
+	if l.maxTokens > 0 {
+		payload["options"] = map[string]interface{}{"num_predict": l.maxTokens}
+	}
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
 	}

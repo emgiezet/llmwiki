@@ -9,11 +9,21 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/option"
 )
 
-type ClaudeAPILLM struct{ client anthropic.Client }
+type ClaudeAPILLM struct {
+	client    anthropic.Client
+	maxTokens int64
+}
 
-func NewClaudeAPILLM(apiKey string) LLM {
+// claudeAPIDefaultMaxTokens is the fallback when callers pass 0.
+const claudeAPIDefaultMaxTokens = 8192
+
+func NewClaudeAPILLM(apiKey string, maxTokens int) LLM {
 	client := anthropic.NewClient(option.WithAPIKey(apiKey))
-	return &ClaudeAPILLM{client: client}
+	mt := int64(maxTokens)
+	if mt <= 0 {
+		mt = claudeAPIDefaultMaxTokens
+	}
+	return &ClaudeAPILLM{client: client, maxTokens: mt}
 }
 
 func (l *ClaudeAPILLM) Generate(ctx context.Context, prompt string) (string, error) {
@@ -24,7 +34,7 @@ func (l *ClaudeAPILLM) Generate(ctx context.Context, prompt string) (string, err
 	}
 	msg, err := l.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaudeSonnet4_6,
-		MaxTokens: 8192,
+		MaxTokens: l.maxTokens,
 		Messages: []anthropic.MessageParam{
 			anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
 		},

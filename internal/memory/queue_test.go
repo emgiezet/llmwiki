@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -66,7 +67,7 @@ func TestDrainAbsorbQueue_DisabledStore(t *testing.T) {
 	if err := QueueAbsorb(dir, QueuedAbsorb{ProjectName: "p"}); err != nil {
 		t.Fatal(err)
 	}
-	res, err := DrainAbsorbQueue(nil, dir, &Store{})
+	res, err := DrainAbsorbQueue(context.TODO(), dir, &Store{})
 	if err != nil {
 		t.Errorf("drain disabled store returned error: %v", err)
 	}

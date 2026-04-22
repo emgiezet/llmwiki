@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mgz/llmwiki/internal/validation"
+	"github.com/emgiezet/llmwiki/internal/validation"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,10 +26,26 @@ type GlobalConfig struct {
 }
 
 type ProjectConfig struct {
-	LLM         string `yaml:"llm"`
-	OllamaModel string `yaml:"ollama_model"`
-	Customer    string `yaml:"customer"`
-	Type        string `yaml:"type"` // client | personal | oss
+	LLM         string           `yaml:"llm"`
+	OllamaModel string           `yaml:"ollama_model"`
+	Customer    string           `yaml:"customer"`
+	Type        string           `yaml:"type"` // client | personal | oss
+	Extraction  ExtractionConfig `yaml:"extraction,omitempty"`
+}
+
+// ExtractionConfig controls which markdown sections the LLM is asked to
+// produce and how many output tokens the call is allowed to spend.
+//
+// Sections wins over Preset when both are set; empty means "preset default".
+type ExtractionConfig struct {
+	// Preset names a bundle from ingestion.Presets (e.g. "minimal", "software",
+	// "feature", "full"). Empty means the "default" preset.
+	Preset string `yaml:"preset,omitempty"`
+	// Sections lists section IDs explicitly; when non-empty it replaces Preset.
+	Sections []string `yaml:"sections,omitempty"`
+	// MaxTokens caps LLM output per call. 0 means backend default (Claude API
+	// falls back to 8192; Ollama and claude-code leave the limit to the backend).
+	MaxTokens int `yaml:"max_tokens,omitempty"`
 }
 
 // Merged holds resolved config (global defaults + project overrides)
@@ -45,6 +61,7 @@ type Merged struct {
 	MemoryEnabled     bool
 	MemoryDir         string
 	ClaudeBinaryPath  string
+	Extraction        ExtractionConfig
 }
 
 func homeDir() string {
@@ -115,6 +132,7 @@ func Merge(g GlobalConfig, p ProjectConfig) Merged {
 		MemoryEnabled:     g.MemoryEnabled,
 		MemoryDir:         memDir,
 		ClaudeBinaryPath:  g.ClaudeBinaryPath,
+		Extraction:        p.Extraction,
 	}
 	if p.LLM != "" {
 		m.LLM = p.LLM

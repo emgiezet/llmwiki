@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mgz/llmwiki/internal/memory"
+	"github.com/emgiezet/llmwiki/internal/memory"
 )
 
 // ErrNothingToAbsorb is returned when no git history is found and no --note is provided.

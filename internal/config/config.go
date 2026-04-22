@@ -12,13 +12,17 @@ import (
 )
 
 type GlobalConfig struct {
-	WikiRoot           string `yaml:"wiki_root"`
-	LLM                string `yaml:"llm"`
-	OllamaHost         string `yaml:"ollama_host"`
-	AllowRemoteOllama  bool   `yaml:"allow_remote_ollama"`
-	AnthropicAPIKey    string `yaml:"anthropic_api_key"`
-	MemoryEnabled      bool   `yaml:"memory_enabled"`
-	MemoryDir          string `yaml:"memory_dir"`
+	WikiRoot          string `yaml:"wiki_root"`
+	LLM               string `yaml:"llm"`
+	OllamaHost        string `yaml:"ollama_host"`
+	AllowRemoteOllama bool   `yaml:"allow_remote_ollama"`
+	AnthropicAPIKey   string `yaml:"anthropic_api_key"`
+	MemoryEnabled     bool   `yaml:"memory_enabled"`
+	MemoryDir         string `yaml:"memory_dir"`
+	// ClaudeBinaryPath overrides the default PATH lookup for the 'claude' binary.
+	// Useful when the Claude Code CLI is installed in a non-standard location or
+	// when PATH hijacking is a concern. Empty (default) = look up 'claude' via PATH.
+	ClaudeBinaryPath string `yaml:"claude_binary_path"`
 }
 
 type ProjectConfig struct {
@@ -40,6 +44,7 @@ type Merged struct {
 	Type              string
 	MemoryEnabled     bool
 	MemoryDir         string
+	ClaudeBinaryPath  string
 }
 
 func homeDir() string {
@@ -109,6 +114,7 @@ func Merge(g GlobalConfig, p ProjectConfig) Merged {
 		OllamaModel:       p.OllamaModel,
 		MemoryEnabled:     g.MemoryEnabled,
 		MemoryDir:         memDir,
+		ClaudeBinaryPath:  g.ClaudeBinaryPath,
 	}
 	if p.LLM != "" {
 		m.LLM = p.LLM

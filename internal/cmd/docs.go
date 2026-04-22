@@ -54,6 +54,7 @@ With --write, overwrites the target file in the project directory.`,
 				OllamaModel:       cfg.OllamaModel,
 				AllowRemoteOllama: cfg.AllowRemoteOllama,
 				AnthropicAPIKey:   cfg.AnthropicAPIKey,
+				ClaudeBinaryPath:  cfg.ClaudeBinaryPath,
 			})
 			if err != nil {
 				return fmt.Errorf("init LLM: %w", err)

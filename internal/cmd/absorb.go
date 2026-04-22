@@ -69,9 +69,13 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 				return fmt.Errorf("cannot combine --note and --note-stdin")
 			}
 			if noteStdin {
-				data, err := io.ReadAll(os.Stdin)
+				const maxNoteSize = 1 << 20 // 1 MiB
+				data, err := io.ReadAll(io.LimitReader(os.Stdin, maxNoteSize))
 				if err != nil {
 					return fmt.Errorf("read stdin: %w", err)
+				}
+				if int64(len(data)) >= maxNoteSize {
+					return fmt.Errorf("note from stdin exceeds %d bytes", maxNoteSize)
 				}
 				note = strings.TrimSpace(string(data))
 			}

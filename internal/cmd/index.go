@@ -36,6 +36,7 @@ func NewIndexCmd() *cobra.Command {
 				AnthropicAPIKey:   global.AnthropicAPIKey,
 				OllamaHost:        global.OllamaHost,
 				AllowRemoteOllama: global.AllowRemoteOllama,
+				ClaudeBinaryPath:  global.ClaudeBinaryPath,
 			})
 			if err != nil {
 				return err

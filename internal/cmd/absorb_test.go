@@ -44,3 +44,27 @@ func TestAbsorbCmd_NoteStdin_MutuallyExclusiveWithNote(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot combine")
 }
+
+func TestAbsorbCmd_NoteStdin_RejectsOversizedInput(t *testing.T) {
+	const twoMiB = 2 << 20
+
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	origStdin := os.Stdin
+	os.Stdin = r
+	t.Cleanup(func() { os.Stdin = origStdin })
+
+	// Write 2 MiB of zeros then close the pipe.
+	go func() {
+		zeros := make([]byte, twoMiB)
+		w.Write(zeros) //nolint:errcheck
+		w.Close()
+	}()
+
+	root := buildTestRoot()
+	root.SetArgs([]string{"absorb", t.TempDir(), "--note-stdin"})
+	err = root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exceeds")
+	assert.Contains(t, err.Error(), "1048576")
+}

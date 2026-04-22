@@ -56,6 +56,7 @@ Requires prior 'absorb' sessions or 'ingest' to populate memory.`,
 				OllamaModel:       cfg.OllamaModel,
 				AllowRemoteOllama: cfg.AllowRemoteOllama,
 				AnthropicAPIKey:   cfg.AnthropicAPIKey,
+				ClaudeBinaryPath:  cfg.ClaudeBinaryPath,
 			})
 			if err != nil {
 				return fmt.Errorf("init LLM: %w", err)

@@ -22,13 +22,14 @@ def load_embedded_script():
     return m.group(1)
 
 
-def run_hook(script_path, event):
+def run_hook(script_path, event, env=None):
     return subprocess.run(
         ["python3", script_path],
         input=json.dumps(event),
         text=True,
         capture_output=True,
         timeout=10,
+        env=env,
     )
 
 
@@ -51,6 +52,7 @@ def main():
         failures.append(f"empty event exited {result.returncode}, expected 0")
 
     # Case 3: malformed JSON — hook must exit 0 (wrapped in try/except).
+    # With D14 applied, the exception is also logged to ~/.llmwiki/hook.log.
     result = subprocess.run(
         ["python3", script_path],
         input="{not json",
@@ -61,13 +63,37 @@ def main():
     if result.returncode != 0:
         failures.append(f"malformed JSON exited {result.returncode}, expected 0")
 
+    # Case 4 (D14): malformed JSON triggers exception logging.
+    # Run the hook with HOME pointed at a temp dir so we can inspect the log.
+    with tempfile.TemporaryDirectory() as tmpHome:
+        env = os.environ.copy()
+        env["HOME"] = tmpHome
+        result = subprocess.run(
+            ["python3", script_path],
+            input="{not json",
+            text=True,
+            capture_output=True,
+            timeout=10,
+            env=env,
+        )
+        if result.returncode != 0:
+            failures.append(f"D14 logging case exited {result.returncode}, expected 0")
+        else:
+            log_path = os.path.join(tmpHome, ".llmwiki", "hook.log")
+            if not os.path.exists(log_path):
+                failures.append("D14: hook.log not created after JSON parse exception")
+            else:
+                log_content = open(log_path).read()
+                if "JSONDecodeError" not in log_content:
+                    failures.append(f"D14: hook.log missing JSONDecodeError, got: {log_content!r}")
+
     os.unlink(script_path)
 
     if failures:
         for f in failures:
             print(f"FAIL: {f}", file=sys.stderr)
         sys.exit(1)
-    print("all transcript-path hardening cases pass")
+    print("all transcript-path hardening cases pass (including D14 exception logging)")
 
 
 if __name__ == "__main__":

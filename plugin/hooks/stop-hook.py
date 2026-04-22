@@ -100,8 +100,14 @@ def main():
             timeout=30,
             capture_output=True,
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        try:
+            log_path = os.path.join(os.path.expanduser("~"), ".llmwiki", "hook.log")
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, "a", encoding="utf-8") as logf:
+                logf.write(f"{os.path.basename(__file__)}: {type(exc).__name__}: {exc}\n")
+        except Exception:
+            pass
     sys.exit(0)
 
 

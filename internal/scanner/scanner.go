@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/mgz/llmwiki/internal/safeio"
 )
@@ -103,6 +104,10 @@ func ScanProject(dir string) (ScanResult, error) {
 		if matched {
 			data, readErr := safeio.ReadRegularFile(path)
 			if readErr != nil {
+				return nil
+			}
+			if !utf8.Valid(data) {
+				fmt.Fprintf(os.Stderr, "skipping non-utf8 file: %s\n", path)
 				return nil
 			}
 			content := string(data)

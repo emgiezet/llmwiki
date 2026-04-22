@@ -202,3 +202,29 @@ func TestScanDirectoryTree_SkipsDirs(t *testing.T) {
 	assert.NotContains(t, tree, "node_modules")
 	assert.Contains(t, tree, "src/")
 }
+
+// TestScanProject_SkipsNonUTF8Files verifies D10: binary / non-UTF-8 files
+// that happen to match a scan pattern are silently skipped.
+func TestScanProject_SkipsNonUTF8Files(t *testing.T) {
+	dir := t.TempDir()
+
+	// Valid UTF-8 README — should appear in output.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"),
+		[]byte("# Good project\nAll ASCII here."), 0644))
+
+	// Binary file named README.bin — not a scan target by name so won't match.
+	// Use a pattern that IS a scan target: go.mod with binary content.
+	binaryContent := []byte{0xFF, 0xFE, 0x00, 0x01, 0x80, 0x90, 0xAB, 0xCD}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), binaryContent, 0644))
+
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+
+	// README must be present.
+	assert.Contains(t, result.Summary, "# Good project")
+
+	// The binary go.mod content must NOT appear in the summary.
+	assert.NotContains(t, result.Summary, string(binaryContent))
+	// go.mod section header should be absent since the file was skipped.
+	assert.NotContains(t, result.Summary, "=== go.mod ===")
+}

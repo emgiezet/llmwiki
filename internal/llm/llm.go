@@ -17,13 +17,16 @@ type Config struct {
 	OllamaModel       string
 	AllowRemoteOllama bool
 	AnthropicAPIKey   string
+	// ClaudeBinaryPath overrides the PATH lookup for the 'claude' binary.
+	// Empty (default) = look up 'claude' via PATH.
+	ClaudeBinaryPath string
 }
 
 // NewLLM returns the appropriate LLM backend.
 func NewLLM(cfg Config) (LLM, error) {
 	switch cfg.Backend {
 	case "claude-code", "":
-		return NewClaudeCodeLLM(), nil
+		return NewClaudeCodeLLM(cfg.ClaudeBinaryPath), nil
 	case "claude-api":
 		if cfg.AnthropicAPIKey == "" {
 			return nil, fmt.Errorf("claude-api requires ANTHROPIC_API_KEY")

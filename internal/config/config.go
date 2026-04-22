@@ -12,12 +12,13 @@ import (
 )
 
 type GlobalConfig struct {
-	WikiRoot        string `yaml:"wiki_root"`
-	LLM             string `yaml:"llm"`
-	OllamaHost      string `yaml:"ollama_host"`
-	AnthropicAPIKey string `yaml:"anthropic_api_key"`
-	MemoryEnabled   bool   `yaml:"memory_enabled"`
-	MemoryDir       string `yaml:"memory_dir"`
+	WikiRoot           string `yaml:"wiki_root"`
+	LLM                string `yaml:"llm"`
+	OllamaHost         string `yaml:"ollama_host"`
+	AllowRemoteOllama  bool   `yaml:"allow_remote_ollama"`
+	AnthropicAPIKey    string `yaml:"anthropic_api_key"`
+	MemoryEnabled      bool   `yaml:"memory_enabled"`
+	MemoryDir          string `yaml:"memory_dir"`
 }
 
 type ProjectConfig struct {
@@ -29,15 +30,16 @@ type ProjectConfig struct {
 
 // Merged holds resolved config (global defaults + project overrides)
 type Merged struct {
-	WikiRoot        string
-	LLM             string
-	OllamaHost      string
-	OllamaModel     string
-	AnthropicAPIKey string
-	Customer        string
-	Type            string
-	MemoryEnabled   bool
-	MemoryDir       string
+	WikiRoot          string
+	LLM               string
+	OllamaHost        string
+	OllamaModel       string
+	AllowRemoteOllama bool
+	AnthropicAPIKey   string
+	Customer          string
+	Type              string
+	MemoryEnabled     bool
+	MemoryDir         string
 }
 
 func homeDir() string {
@@ -97,15 +99,16 @@ func Merge(g GlobalConfig, p ProjectConfig) Merged {
 		memDir = filepath.Join(homeDir(), ".llmwiki", "memory")
 	}
 	m := Merged{
-		WikiRoot:        g.WikiRoot,
-		LLM:             g.LLM,
-		OllamaHost:      g.OllamaHost,
-		AnthropicAPIKey: g.AnthropicAPIKey,
-		Customer:        p.Customer,
-		Type:            p.Type,
-		OllamaModel:     p.OllamaModel,
-		MemoryEnabled:   g.MemoryEnabled,
-		MemoryDir:       memDir,
+		WikiRoot:          g.WikiRoot,
+		LLM:               g.LLM,
+		OllamaHost:        g.OllamaHost,
+		AllowRemoteOllama: g.AllowRemoteOllama,
+		AnthropicAPIKey:   g.AnthropicAPIKey,
+		Customer:          p.Customer,
+		Type:              p.Type,
+		OllamaModel:       p.OllamaModel,
+		MemoryEnabled:     g.MemoryEnabled,
+		MemoryDir:         memDir,
 	}
 	if p.LLM != "" {
 		m.LLM = p.LLM

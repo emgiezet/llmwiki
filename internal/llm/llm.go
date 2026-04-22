@@ -12,10 +12,11 @@ type LLM interface {
 
 // Config holds backend selection and credentials.
 type Config struct {
-	Backend         string // "claude-code" | "claude-api" | "ollama"
-	OllamaHost      string
-	OllamaModel     string
-	AnthropicAPIKey string
+	Backend           string // "claude-code" | "claude-api" | "ollama"
+	OllamaHost        string
+	OllamaModel       string
+	AllowRemoteOllama bool
+	AnthropicAPIKey   string
 }
 
 // NewLLM returns the appropriate LLM backend.
@@ -32,6 +33,9 @@ func NewLLM(cfg Config) (LLM, error) {
 		host := cfg.OllamaHost
 		if host == "" {
 			host = "http://localhost:11434"
+		}
+		if err := ValidateOllamaHost(host, cfg.AllowRemoteOllama); err != nil {
+			return nil, err
 		}
 		model := cfg.OllamaModel
 		if model == "" {

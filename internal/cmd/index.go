@@ -32,9 +32,10 @@ func NewIndexCmd() *cobra.Command {
 				global.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")
 			}
 			l, err := llm.NewLLM(llm.Config{
-				Backend:         global.LLM,
-				AnthropicAPIKey: global.AnthropicAPIKey,
-				OllamaHost:      global.OllamaHost,
+				Backend:           global.LLM,
+				AnthropicAPIKey:   global.AnthropicAPIKey,
+				OllamaHost:        global.OllamaHost,
+				AllowRemoteOllama: global.AllowRemoteOllama,
 			})
 			if err != nil {
 				return err

@@ -49,10 +49,11 @@ With --write, overwrites the target file in the project directory.`,
 			}
 
 			l, err := llm.NewLLM(llm.Config{
-				Backend:         cfg.LLM,
-				OllamaHost:      cfg.OllamaHost,
-				OllamaModel:     cfg.OllamaModel,
-				AnthropicAPIKey: cfg.AnthropicAPIKey,
+				Backend:           cfg.LLM,
+				OllamaHost:        cfg.OllamaHost,
+				OllamaModel:       cfg.OllamaModel,
+				AllowRemoteOllama: cfg.AllowRemoteOllama,
+				AnthropicAPIKey:   cfg.AnthropicAPIKey,
 			})
 			if err != nil {
 				return fmt.Errorf("init LLM: %w", err)

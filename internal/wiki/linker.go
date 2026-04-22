@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/mgz/llmwiki/internal/safeio"
 )
 
 // LinkTarget represents a wiki entity that can be linked to.
@@ -75,14 +77,14 @@ func LinkWikiFiles(wikiRoot string) error {
 		if path == filepath.Join(wikiRoot, "_index.md") {
 			return nil
 		}
-		data, readErr := os.ReadFile(path)
+		data, readErr := safeio.ReadRegularFile(path)
 		if readErr != nil {
 			return nil
 		}
 		selfPath, _ := filepath.Rel(wikiRoot, path)
 		result := ApplyLinks(string(data), selfPath, targets, wikiRoot)
 		if result != string(data) {
-			return os.WriteFile(path, []byte(result), 0644)
+			return safeio.WriteRegularFile(path, []byte(result), 0644)
 		}
 		return nil
 	})

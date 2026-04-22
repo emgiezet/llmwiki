@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/mgz/llmwiki/internal/safeio"
 )
 
 // ScanResult holds the collected text from a project or service directory.
@@ -99,7 +101,7 @@ func ScanProject(dir string) (ScanResult, error) {
 			matched, maxChars = matchPathTarget(rel)
 		}
 		if matched {
-			data, readErr := os.ReadFile(path)
+			data, readErr := safeio.ReadRegularFile(path)
 			if readErr != nil {
 				return nil
 			}

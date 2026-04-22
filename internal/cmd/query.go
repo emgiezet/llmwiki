@@ -9,6 +9,7 @@ import (
 	"github.com/mgz/llmwiki/internal/config"
 	"github.com/mgz/llmwiki/internal/llm"
 	"github.com/mgz/llmwiki/internal/memory"
+	"github.com/mgz/llmwiki/internal/safeio"
 	"github.com/spf13/cobra"
 )
 
@@ -88,7 +89,7 @@ func loadAllWikiContent(wikiRoot string) (string, error) {
 		if !strings.HasSuffix(path, ".md") || strings.HasSuffix(path, "_index.md") {
 			return nil
 		}
-		data, readErr := os.ReadFile(path)
+		data, readErr := safeio.ReadRegularFile(path)
 		if readErr != nil {
 			return nil
 		}

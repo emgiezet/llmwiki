@@ -247,6 +247,14 @@ Generates a client-level `_index.md` with executive summary, C4 diagram, archite
 
 Plain markdown with YAML front matter. No proprietary format. Works with git, grep, and any text editor.
 
+## NanoClaw Integration
+
+llmwiki works with [NanoClaw](https://nanoclaw.com) — a Discord bot that can query your wiki knowledge base and answer project questions directly in your Discord server.
+
+![NanoClaw answering a question about llmwiki in Discord](docs/nanoclaw-discord.png)
+
+Ask NanoClaw questions about any of your tracked projects and it draws on the wiki entries llmwiki generated. See [docs/nanoclaw-integration.md](docs/nanoclaw-integration.md) for setup instructions.
+
 ## Obsidian Compatibility
 
 ![llmwiki graph view in Obsidian](docs/obsidian2.png)

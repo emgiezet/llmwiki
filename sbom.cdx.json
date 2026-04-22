@@ -1,0 +1,438 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:712e7203-9652-4f99-be91-75cdcf9635f5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-04-22T13:41:37+02:00",
+    "tools": [
+      {
+        "vendor": "CycloneDX",
+        "name": "cyclonedx-gomod",
+        "version": "v1.10.0",
+        "hashes": [
+          {
+            "alg": "MD5",
+            "content": "6067235549de602df465710933908dbd"
+          },
+          {
+            "alg": "SHA-1",
+            "content": "d7b64f61de82753d1b5b334e93aa0930d99f683a"
+          },
+          {
+            "alg": "SHA-256",
+            "content": "b8f19e1b021890087fe9d6a5d68c33d9c7f889d40efcfe8238285d6d206f1267"
+          },
+          {
+            "alg": "SHA-384",
+            "content": "54fa34498209cef9192afa2edfebc30ddffaf223306346a23d19cf0ed6fcd1df1642f097d45979dd2e14d7c5fcfcd741"
+          },
+          {
+            "alg": "SHA-512",
+            "content": "d152de867fface011cfdc5e4101d407b0d36b7d7f6ea2fa32f0a120c9bb7bc8f6847539c68b2ca889922598caba312c094c050dccd375270e53465b4416a485e"
+          }
+        ],
+        "externalReferences": [
+          {
+            "url": "https://github.com/CycloneDX/cyclonedx-gomod",
+            "type": "vcs"
+          },
+          {
+            "url": "https://cyclonedx.org",
+            "type": "website"
+          }
+        ]
+      }
+    ],
+    "component": {
+      "bom-ref": "pkg:golang/github.com/mgz/llmwiki@v0.0.0-20260422114126-29eac96723ea?type=module",
+      "type": "application",
+      "name": "github.com/mgz/llmwiki",
+      "version": "v0.0.0-20260422114126-29eac96723ea",
+      "purl": "pkg:golang/github.com/mgz/llmwiki@v0.0.0-20260422114126-29eac96723ea?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/mgz/llmwiki",
+          "type": "vcs"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:golang/github.com/angelnicolasc/graymatter@v0.5.0?type=module",
+      "type": "library",
+      "name": "github.com/angelnicolasc/graymatter",
+      "version": "v0.5.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b827a859c49192b0855a2188830e2d5a9ffd93287994e4c8b9c35de9716b5282"
+        }
+      ],
+      "purl": "pkg:golang/github.com/angelnicolasc/graymatter@v0.5.0?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/angelnicolasc/graymatter",
+          "type": "vcs"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/anthropics/anthropic-sdk-go@v1.36.0?type=module",
+      "type": "library",
+      "name": "github.com/anthropics/anthropic-sdk-go",
+      "version": "v1.36.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "dee60c2ee20856e59a3899e6db49afd3b8e2ef86c46ed8f58dd52faf4058fccb"
+        }
+      ],
+      "purl": "pkg:golang/github.com/anthropics/anthropic-sdk-go@v1.36.0?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/anthropics/anthropic-sdk-go",
+          "type": "vcs"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/inconshreveable/mousetrap@v1.1.0?type=module",
+      "type": "library",
+      "name": "github.com/inconshreveable/mousetrap",
+      "version": "v1.1.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c0dfb1e0d546a4cb0eec4ad49ff994237bc4a04e89b75dd7dacd1bab0a7db5cf"
+        }
+      ],
+      "purl": "pkg:golang/github.com/inconshreveable/mousetrap@v1.1.0?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/inconshreveable/mousetrap",
+          "type": "vcs"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/oklog/ulid/v2@v2.1.0?type=module",
+      "type": "library",
+      "name": "github.com/oklog/ulid/v2",
+      "version": "v2.1.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "fbd961a3100fe7ac1edb9b726044c1058d582c0d926a82ef50582b3f69a23c95"
+        }
+      ],
+      "purl": "pkg:golang/github.com/oklog/ulid/v2@v2.1.0?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/oklog/ulid",
+          "type": "vcs"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/philippgille/chromem-go@v0.7.0?type=module",
+      "type": "library",
+      "name": "github.com/philippgille/chromem-go",
+      "version": "v0.7.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e237ef7f22b29a328d7c6c415211d4723d64a7b075ecd2ff2353febc687546f6"
+        }
+      ],
+      "purl": "pkg:golang/github.com/philippgille/chromem-go@v0.7.0?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/philippgille/chromem-go",
+          "type": "vcs"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/spf13/cobra@v1.10.2?type=module",
+      "type": "library",
+      "name": "github.com/spf13/cobra",
+      "version": "v1.10.2",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0cc4d3a27c799bae4873418ea11636735e9609b1f138ec3ac717b3b8b681a5c5"
+        }
+      ],
+      "purl": "pkg:golang/github.com/spf13/cobra@v1.10.2?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/spf13/cobra",
+          "type": "vcs"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/spf13/pflag@v1.0.10?type=module",
+      "type": "library",
+      "name": "github.com/spf13/pflag",
+      "version": "v1.0.10",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e04061d8a01807068e363e9bd987b51a21dfc23ab244ea05e11c183bebcfc059"
+        }
+      ],
+      "purl": "pkg:golang/github.com/spf13/pflag@v1.0.10?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/spf13/pflag",
+          "type": "vcs"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/tidwall/gjson@v1.18.0?type=module",
+      "type": "library",
+      "name": "github.com/tidwall/gjson",
+      "version": "v1.18.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1480de7b207cd3479f2d7f3d7b96bc63404d1fe2ce9e02721ab216c46d852906"
+        }
+      ],
+      "purl": "pkg:golang/github.com/tidwall/gjson@v1.18.0?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/tidwall/gjson",
+          "type": "vcs"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/tidwall/match@v1.1.1?type=module",
+      "type": "library",
+      "name": "github.com/tidwall/match",
+      "version": "v1.1.1",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f87a3bd7926994edfa41883037d3c660d86066fa1449cf57d9cf342954e2f860"
+        }
+      ],
+      "purl": "pkg:golang/github.com/tidwall/match@v1.1.1?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/tidwall/match",
+          "type": "vcs"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/tidwall/pretty@v1.2.1?type=module",
+      "type": "library",
+      "name": "github.com/tidwall/pretty",
+      "version": "v1.2.1",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "aa3b0e14e596425f8ddd1b28179fecb26d691e6249c218e549b679d48eb0325e"
+        }
+      ],
+      "purl": "pkg:golang/github.com/tidwall/pretty@v1.2.1?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/tidwall/pretty",
+          "type": "vcs"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:golang/github.com/tidwall/sjson@v1.2.5?type=module",
+      "type": "library",
+      "name": "github.com/tidwall/sjson",
+      "version": "v1.2.5",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "90bcbc9a36bed5cf639658ef5939526b333b70a0d17c9b91fdb38985c63935c6"
+        }
+      ],
+      "purl": "pkg:golang/github.com/tidwall/sjson@v1.2.5?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/tidwall/sjson",
+          "type": "vcs"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:golang/go.etcd.io/bbolt@v1.3.11?type=module",
+      "type": "library",
+      "name": "go.etcd.io/bbolt",
+      "version": "v1.3.11",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c86133575c0fcf6c9508bb03f19022187847565733c82f5dd6b3f8dff542449d"
+        }
+      ],
+      "purl": "pkg:golang/go.etcd.io/bbolt@v1.3.11?goarch=amd64\u0026goos=linux\u0026type=module"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/sync@v0.16.0?type=module",
+      "type": "library",
+      "name": "golang.org/x/sync",
+      "version": "v0.16.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c9c049121a7da78bd7bd464db3378eab49064cf821a2938bf2ad1fab7becb71c"
+        }
+      ],
+      "purl": "pkg:golang/golang.org/x/sync@v0.16.0?goarch=amd64\u0026goos=linux\u0026type=module"
+    },
+    {
+      "bom-ref": "pkg:golang/golang.org/x/sys@v0.34.0?type=module",
+      "type": "library",
+      "name": "golang.org/x/sys",
+      "version": "v0.34.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1f9639b09d8bd8945dcafed1385d617bf94f76f16c7749891c5c364e1287c4b0"
+        }
+      ],
+      "purl": "pkg:golang/golang.org/x/sys@v0.34.0?goarch=amd64\u0026goos=linux\u0026type=module"
+    },
+    {
+      "bom-ref": "pkg:golang/gopkg.in/yaml.v3@v3.0.1?type=module",
+      "type": "library",
+      "name": "gopkg.in/yaml.v3",
+      "version": "v3.0.1",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "7f1566fc6cc0cc45aa2c7baf72d23dd4a4bd8613669963a85aed174d8252ec20"
+        }
+      ],
+      "purl": "pkg:golang/gopkg.in/yaml.v3@v3.0.1?goarch=amd64\u0026goos=linux\u0026type=module",
+      "externalReferences": [
+        {
+          "url": "https://github.com/go-yaml/yaml",
+          "type": "vcs"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:golang/github.com/mgz/llmwiki@v0.0.0-20260422114126-29eac96723ea?type=module",
+      "dependsOn": [
+        "pkg:golang/github.com/spf13/cobra@v1.10.2?type=module",
+        "pkg:golang/gopkg.in/yaml.v3@v3.0.1?type=module"
+      ]
+    },
+    {
+      "ref": "pkg:golang/github.com/angelnicolasc/graymatter@v0.5.0?type=module",
+      "dependsOn": [
+        "pkg:golang/github.com/anthropics/anthropic-sdk-go@v1.36.0?type=module",
+        "pkg:golang/github.com/oklog/ulid/v2@v2.1.0?type=module",
+        "pkg:golang/github.com/philippgille/chromem-go@v0.7.0?type=module",
+        "pkg:golang/github.com/tidwall/gjson@v1.18.0?type=module",
+        "pkg:golang/github.com/tidwall/match@v1.1.1?type=module",
+        "pkg:golang/github.com/tidwall/pretty@v1.2.1?type=module",
+        "pkg:golang/github.com/tidwall/sjson@v1.2.5?type=module",
+        "pkg:golang/go.etcd.io/bbolt@v1.3.11?type=module",
+        "pkg:golang/golang.org/x/sync@v0.16.0?type=module",
+        "pkg:golang/golang.org/x/sys@v0.34.0?type=module"
+      ]
+    },
+    {
+      "ref": "pkg:golang/github.com/anthropics/anthropic-sdk-go@v1.36.0?type=module",
+      "dependsOn": [
+        "pkg:golang/github.com/tidwall/gjson@v1.18.0?type=module",
+        "pkg:golang/github.com/tidwall/match@v1.1.1?type=module",
+        "pkg:golang/github.com/tidwall/pretty@v1.2.1?type=module",
+        "pkg:golang/github.com/tidwall/sjson@v1.2.5?type=module",
+        "pkg:golang/golang.org/x/sync@v0.16.0?type=module",
+        "pkg:golang/golang.org/x/sys@v0.34.0?type=module",
+        "pkg:golang/gopkg.in/yaml.v3@v3.0.1?type=module"
+      ]
+    },
+    {
+      "ref": "pkg:golang/github.com/inconshreveable/mousetrap@v1.1.0?type=module"
+    },
+    {
+      "ref": "pkg:golang/github.com/oklog/ulid/v2@v2.1.0?type=module"
+    },
+    {
+      "ref": "pkg:golang/github.com/philippgille/chromem-go@v0.7.0?type=module"
+    },
+    {
+      "ref": "pkg:golang/github.com/spf13/cobra@v1.10.2?type=module",
+      "dependsOn": [
+        "pkg:golang/github.com/inconshreveable/mousetrap@v1.1.0?type=module",
+        "pkg:golang/github.com/spf13/pflag@v1.0.10?type=module"
+      ]
+    },
+    {
+      "ref": "pkg:golang/github.com/spf13/pflag@v1.0.10?type=module"
+    },
+    {
+      "ref": "pkg:golang/github.com/tidwall/gjson@v1.18.0?type=module",
+      "dependsOn": [
+        "pkg:golang/github.com/tidwall/match@v1.1.1?type=module",
+        "pkg:golang/github.com/tidwall/pretty@v1.2.1?type=module"
+      ]
+    },
+    {
+      "ref": "pkg:golang/github.com/tidwall/match@v1.1.1?type=module"
+    },
+    {
+      "ref": "pkg:golang/github.com/tidwall/pretty@v1.2.1?type=module"
+    },
+    {
+      "ref": "pkg:golang/github.com/tidwall/sjson@v1.2.5?type=module",
+      "dependsOn": [
+        "pkg:golang/github.com/tidwall/gjson@v1.18.0?type=module",
+        "pkg:golang/github.com/tidwall/pretty@v1.2.1?type=module"
+      ]
+    },
+    {
+      "ref": "pkg:golang/go.etcd.io/bbolt@v1.3.11?type=module",
+      "dependsOn": [
+        "pkg:golang/golang.org/x/sync@v0.16.0?type=module",
+        "pkg:golang/golang.org/x/sys@v0.34.0?type=module",
+        "pkg:golang/gopkg.in/yaml.v3@v3.0.1?type=module"
+      ]
+    },
+    {
+      "ref": "pkg:golang/golang.org/x/sync@v0.16.0?type=module"
+    },
+    {
+      "ref": "pkg:golang/golang.org/x/sys@v0.34.0?type=module"
+    },
+    {
+      "ref": "pkg:golang/gopkg.in/yaml.v3@v3.0.1?type=module"
+    }
+  ]
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/mgz/llmwiki/internal/config"
 	"github.com/mgz/llmwiki/internal/ingestion"
 	"github.com/mgz/llmwiki/internal/memory"
+	"github.com/mgz/llmwiki/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -28,6 +29,13 @@ Facts accumulate over time. Materialize them into a wiki entry with:
   llmwiki materialize <project>`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := validation.NameComponentOptional("project", project); err != nil {
+				return err
+			}
+			if err := validation.NameComponentOptional("customer", customer); err != nil {
+				return err
+			}
+
 			projectDir, err := filepath.Abs(args[0])
 			if err != nil {
 				return err

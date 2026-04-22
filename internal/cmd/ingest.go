@@ -11,6 +11,7 @@ import (
 	"github.com/mgz/llmwiki/internal/llm"
 	"github.com/mgz/llmwiki/internal/memory"
 	"github.com/mgz/llmwiki/internal/scanner"
+	"github.com/mgz/llmwiki/internal/validation"
 	"github.com/mgz/llmwiki/internal/wiki"
 	"github.com/spf13/cobra"
 )
@@ -24,6 +25,10 @@ func NewIngestCmd() *cobra.Command {
 		Short: "Scan a project directory and update wiki entries",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := validation.NameComponentOptional("service", service); err != nil {
+				return err
+			}
+
 			projectDir, err := filepath.Abs(args[0])
 			if err != nil {
 				return err

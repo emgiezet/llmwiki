@@ -7,6 +7,7 @@ import (
 
 	"github.com/mgz/llmwiki/internal/config"
 	"github.com/mgz/llmwiki/internal/memory"
+	"github.com/mgz/llmwiki/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -40,6 +41,9 @@ func NewRememberCmd() *cobra.Command {
 
 			if project == "" {
 				return fmt.Errorf("--project is required")
+			}
+			if err := validation.NameComponent("project", project); err != nil {
+				return err
 			}
 
 			if err := mem.RememberIngestion(cmd.Context(), project, "", fact, nil); err != nil {
@@ -80,6 +84,10 @@ func NewRecallCmd() *cobra.Command {
 				return fmt.Errorf("init memory: %w", err)
 			}
 			defer mem.Close()
+
+			if err := validation.NameComponentOptional("project", project); err != nil {
+				return err
+			}
 
 			if project != "" {
 				result, recallErr := mem.RecallForProject(cmd.Context(), project, "")

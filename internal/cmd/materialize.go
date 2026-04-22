@@ -8,6 +8,7 @@ import (
 	"github.com/mgz/llmwiki/internal/ingestion"
 	"github.com/mgz/llmwiki/internal/llm"
 	"github.com/mgz/llmwiki/internal/memory"
+	"github.com/mgz/llmwiki/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -23,6 +24,15 @@ Requires prior 'absorb' sessions or 'ingest' to populate memory.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectName := args[0]
+			if err := validation.NameComponent("project", projectName); err != nil {
+				return err
+			}
+			if err := validation.NameComponentOptional("customer", customer); err != nil {
+				return err
+			}
+			if err := validation.NameComponentOptional("type", projectType); err != nil {
+				return err
+			}
 
 			global, err := config.LoadGlobalConfig(config.DefaultGlobalConfigPath())
 			if err != nil {

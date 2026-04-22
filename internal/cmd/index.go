@@ -8,6 +8,7 @@ import (
 	"github.com/mgz/llmwiki/internal/config"
 	"github.com/mgz/llmwiki/internal/ingestion"
 	"github.com/mgz/llmwiki/internal/llm"
+	"github.com/mgz/llmwiki/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -17,6 +18,12 @@ func NewIndexCmd() *cobra.Command {
 		Short: "Generate client and project index files",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 1 {
+				if err := validation.NameComponent("customer", args[0]); err != nil {
+					return err
+				}
+			}
+
 			global, err := config.LoadGlobalConfig(config.DefaultGlobalConfigPath())
 			if err != nil {
 				return err

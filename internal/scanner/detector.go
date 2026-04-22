@@ -1,11 +1,13 @@
 package scanner
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/mgz/llmwiki/internal/validation"
 	"gopkg.in/yaml.v3"
 )
 
@@ -37,6 +39,10 @@ func DetectServices(dir string) ([]ServiceDir, error) {
 		if !e.IsDir() || skipDirs[e.Name()] || strings.HasPrefix(e.Name(), ".") {
 			continue
 		}
+		if err := validation.NameComponent("service", e.Name()); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: skipping service %q: %v\n", e.Name(), err)
+			continue
+		}
 		subdir := filepath.Join(dir, e.Name())
 		if looksLikeService(subdir) {
 			services = append(services, ServiceDir{Name: e.Name(), Path: subdir})
@@ -59,6 +65,10 @@ func servicesFromCompose(path string) ([]ServiceDir, error) {
 	dir := filepath.Dir(path)
 	var result []ServiceDir
 	for name := range compose.Services {
+		if err := validation.NameComponent("service", name); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: skipping docker-compose service %q: %v\n", name, err)
+			continue
+		}
 		subdir := filepath.Join(dir, name)
 		if _, err := os.Stat(subdir); err == nil {
 			result = append(result, ServiceDir{Name: name, Path: subdir})

@@ -9,6 +9,7 @@ import (
 
 	"github.com/mgz/llmwiki/internal/config"
 	"github.com/mgz/llmwiki/internal/memory"
+	"github.com/mgz/llmwiki/internal/validation"
 	"github.com/mgz/llmwiki/internal/wiki"
 	"github.com/spf13/cobra"
 )
@@ -23,6 +24,12 @@ func NewContextCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectName := args[0]
+			if err := validation.NameComponent("project", projectName); err != nil {
+				return err
+			}
+			if err := validation.NameComponentOptional("service", service); err != nil {
+				return err
+			}
 			global, err := config.LoadGlobalConfig(config.DefaultGlobalConfigPath())
 			if err != nil {
 				return err

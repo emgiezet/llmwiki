@@ -2,10 +2,12 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 
+	"github.com/mgz/llmwiki/internal/validation"
 	"gopkg.in/yaml.v3"
 )
 
@@ -71,7 +73,16 @@ func LoadProjectConfig(projectDir string) (ProjectConfig, error) {
 	if err != nil {
 		return cfg, err
 	}
-	return cfg, yaml.Unmarshal(data, &cfg)
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return cfg, err
+	}
+	if err := validation.NameComponentOptional("customer", cfg.Customer); err != nil {
+		return cfg, fmt.Errorf("llmwiki.yaml: %w", err)
+	}
+	if err := validation.NameComponentOptional("type", cfg.Type); err != nil {
+		return cfg, fmt.Errorf("llmwiki.yaml: %w", err)
+	}
+	return cfg, nil
 }
 
 func Merge(g GlobalConfig, p ProjectConfig) Merged {

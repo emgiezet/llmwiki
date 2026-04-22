@@ -36,6 +36,11 @@ jobs:
       - name: go test (race detector)
         run: go test -race ./...
 
+      - name: staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          staticcheck ./...
+
       - name: govulncheck (soft — warn only)
         continue-on-error: true
         run: |

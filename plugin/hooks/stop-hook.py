@@ -7,6 +7,7 @@ Always exits 0 — never blocks Claude.
 """
 import json
 import os
+import os.path
 import subprocess
 import sys
 
@@ -14,6 +15,16 @@ MIN_RESPONSE_CHARS = 300
 MAX_NOTE_CHARS = 2000
 ANALYTICAL_TOOLS = {"Read", "Grep", "Glob", "Bash"}
 RECENT_WINDOW = 20
+
+ALLOWED_TRANSCRIPT_PREFIX = os.path.realpath(os.path.expanduser("~/.claude/projects"))
+
+
+def _is_safe_transcript_path(path):
+    try:
+        real = os.path.realpath(path)
+    except OSError:
+        return False
+    return real == ALLOWED_TRANSCRIPT_PREFIX or real.startswith(ALLOWED_TRANSCRIPT_PREFIX + os.sep)
 
 
 def extract_last_response(transcript_path):
@@ -68,6 +79,9 @@ def main():
         transcript_path = event.get("transcript_path", "")
 
         if not cwd or not transcript_path:
+            sys.exit(0)
+
+        if not _is_safe_transcript_path(transcript_path):
             sys.exit(0)
 
         last_text, recent_tools = extract_last_response(transcript_path)

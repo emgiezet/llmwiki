@@ -3,6 +3,10 @@ name: release-please
 on:
   push:
     branches: [main]
+  # Allow manual re-trigger from the Actions tab — useful when a run failed
+  # due to a one-time repo setting (e.g. "Allow GitHub Actions to create
+  # pull requests") that wasn't enabled yet.
+  workflow_dispatch:
 
 permissions:
   contents: write

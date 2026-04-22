@@ -93,6 +93,7 @@ With --write, overwrites the target file in the project directory.`,
 			if err != nil {
 				return fmt.Errorf("generate docs: %w", err)
 			}
+			result = ingestion.ScrubLLMResponse(result)
 
 			if !write {
 				fmt.Print(result)

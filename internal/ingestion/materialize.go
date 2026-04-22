@@ -36,6 +36,7 @@ func MaterializeFromMemory(ctx context.Context, projectName string, cfg config.M
 	if err != nil {
 		return fmt.Errorf("generate wiki: %w", err)
 	}
+	body = scrubLLMResponse(body)
 
 	tags, body := ParseTagsFromBody(body)
 

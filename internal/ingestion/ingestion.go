@@ -68,6 +68,7 @@ func ingestSingleService(ctx context.Context, projectDir, projectName string, cf
 	if err != nil {
 		return err
 	}
+	body = scrubLLMResponse(body)
 	tags, body := ParseTagsFromBody(body)
 
 	meta := wiki.ProjectMeta{
@@ -116,6 +117,7 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 		if err != nil {
 			return err
 		}
+		body = scrubLLMResponse(body)
 		tags, body := ParseTagsFromBody(body)
 
 		meta := wiki.ServiceMeta{

@@ -44,6 +44,7 @@ func GenerateMultiProjectIndex(ctx context.Context, wikiRoot, projectType, custo
 	if err != nil {
 		return fmt.Errorf("generate project index: %w", err)
 	}
+	body = scrubLLMResponse(body)
 
 	tags, body := ParseTagsFromBody(body)
 
@@ -114,6 +115,7 @@ func GenerateClientIndex(ctx context.Context, wikiRoot, customer string, l llm.L
 	if err != nil {
 		return fmt.Errorf("generate client index: %w", err)
 	}
+	body = scrubLLMResponse(body)
 
 	tags, body := ParseTagsFromBody(body)
 

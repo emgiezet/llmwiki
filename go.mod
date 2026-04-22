@@ -1,8 +1,6 @@
 module github.com/mgz/llmwiki
 
-go 1.24
-
-toolchain go1.25.9
+go 1.25.9
 
 require (
 	github.com/angelnicolasc/graymatter v0.5.0

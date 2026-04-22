@@ -171,21 +171,21 @@ func defaultPluginDir() string {
 
 func writePlugin(pluginDir string) error {
 	manifestDir := filepath.Join(pluginDir, ".claude-plugin")
-	if err := os.MkdirAll(manifestDir, 0755); err != nil {
+	if err := os.MkdirAll(manifestDir, 0755); err != nil { // #nosec G301 -- plugin dirs must be 0755 for Claude Code discovery
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(manifestDir, "plugin.json"), []byte(pluginManifest), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(manifestDir, "plugin.json"), []byte(pluginManifest), 0644); err != nil { // #nosec G306 -- plugin manifest is world-readable by design
 		return err
 	}
 
 	hooksDir := filepath.Join(pluginDir, "hooks")
-	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+	if err := os.MkdirAll(hooksDir, 0755); err != nil { // #nosec G301 -- plugin dirs must be 0755 for Claude Code discovery
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(hooksDir, "hooks.json"), []byte(hooksConfig), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(hooksDir, "hooks.json"), []byte(hooksConfig), 0644); err != nil { // #nosec G306 -- hook config is world-readable by design
 		return err
 	}
-	return os.WriteFile(filepath.Join(hooksDir, "stop-hook.py"), []byte(stopHookScript), 0755)
+	return os.WriteFile(filepath.Join(hooksDir, "stop-hook.py"), []byte(stopHookScript), 0755) // #nosec G306 -- hook script must be executable
 }
 
 func newHookInstallCmd() *cobra.Command {

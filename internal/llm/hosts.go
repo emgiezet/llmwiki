@@ -39,8 +39,5 @@ func isLoopback(h string) bool {
 	case "localhost", "127.0.0.1", "::1":
 		return true
 	}
-	if strings.HasPrefix(h, "127.") {
-		return true
-	}
-	return false
+	return strings.HasPrefix(h, "127.")
 }

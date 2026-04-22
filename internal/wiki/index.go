@@ -27,7 +27,7 @@ type indexFile struct {
 
 // WriteIndex writes all entries to path as YAML front matter + markdown table.
 func WriteIndex(path string, entries []IndexEntry) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil { // #nosec G301 -- wiki dirs are world-readable by design
 		return err
 	}
 	data := indexFile{Projects: entries}
@@ -44,7 +44,7 @@ func WriteIndex(path string, entries []IndexEntry) error {
 		fmt.Fprintf(&buf, "| %s | %s | %s | %s | [link](%s) |\n",
 			e.Name, e.Customer, e.Type, e.Status, e.WikiPath)
 	}
-	return os.WriteFile(path, buf.Bytes(), 0644)
+	return os.WriteFile(path, buf.Bytes(), 0644) // #nosec G306 -- wiki index is world-readable by design
 }
 
 // ReadIndex reads entries from _index.md front matter.

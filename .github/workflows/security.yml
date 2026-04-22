@@ -1,0 +1,61 @@
+name: security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly re-scan to catch newly disclosed CVEs in pinned deps.
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for gitleaks
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.9"
+
+      - name: Install tools
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install github.com/google/osv-scanner/cmd/osv-scanner@latest
+          go install github.com/zricethezav/gitleaks/v8@latest
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: staticcheck
+        run: staticcheck ./...
+
+      - name: gosec
+        # G304/G204 excluded: intentional file-scanner + subprocess design; see docs/threat-model.md
+        run: gosec -exclude-dir=testdata -exclude=G304,G204 ./...
+
+      - name: govulncheck
+        run: govulncheck ./...
+
+      - name: osv-scanner
+        run: osv-scanner --lockfile=go.mod
+
+      - name: gitleaks
+        run: gitleaks detect --source=. --redact --log-opts="--all"
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.9"
+      - run: go test ./...

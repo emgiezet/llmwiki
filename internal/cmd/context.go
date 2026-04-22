@@ -149,5 +149,5 @@ func injectIntoFile(path, content string) error {
 	buf.WriteString(content)
 	buf.WriteString("\n")
 	buf.Write(data[ei:])
-	return os.WriteFile(path, buf.Bytes(), 0644)
+	return os.WriteFile(path, buf.Bytes(), 0644) // #nosec G306 -- preserves existing file permissions; CLAUDE.md is world-readable by design
 }

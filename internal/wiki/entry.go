@@ -91,7 +91,7 @@ func ParseClientEntry(data []byte) (ClientEntry, error) {
 }
 
 func WriteClientEntry(path string, meta ClientMeta, body string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil { // #nosec G301 -- wiki dirs are world-readable by design
 		return err
 	}
 	fm, err := yaml.Marshal(meta)
@@ -99,7 +99,7 @@ func WriteClientEntry(path string, meta ClientMeta, body string) error {
 		return err
 	}
 	content := fmt.Sprintf("---\n%s---\n%s", fm, body)
-	return os.WriteFile(path, []byte(content), 0644)
+	return os.WriteFile(path, []byte(content), 0644) // #nosec G306 -- wiki files are world-readable by design
 }
 
 func ParseMultiProjectEntry(data []byte) (MultiProjectEntry, error) {
@@ -114,7 +114,7 @@ func ParseMultiProjectEntry(data []byte) (MultiProjectEntry, error) {
 }
 
 func WriteMultiProjectEntry(path string, meta MultiProjectMeta, body string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil { // #nosec G301 -- wiki dirs are world-readable by design
 		return err
 	}
 	fm, err := yaml.Marshal(meta)
@@ -122,7 +122,7 @@ func WriteMultiProjectEntry(path string, meta MultiProjectMeta, body string) err
 		return err
 	}
 	content := fmt.Sprintf("---\n%s---\n%s", fm, body)
-	return os.WriteFile(path, []byte(content), 0644)
+	return os.WriteFile(path, []byte(content), 0644) // #nosec G306 -- wiki files are world-readable by design
 }
 
 var separator = []byte("---\n")
@@ -162,7 +162,7 @@ func ParseServiceEntry(data []byte) (ServiceEntry, error) {
 }
 
 func WriteProjectEntry(path string, meta ProjectMeta, body string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil { // #nosec G301 -- wiki dirs are world-readable by design
 		return err
 	}
 	fm, err := yaml.Marshal(meta)
@@ -170,11 +170,11 @@ func WriteProjectEntry(path string, meta ProjectMeta, body string) error {
 		return err
 	}
 	content := fmt.Sprintf("---\n%s---\n%s", fm, body)
-	return os.WriteFile(path, []byte(content), 0644)
+	return os.WriteFile(path, []byte(content), 0644) // #nosec G306 -- wiki files are world-readable by design
 }
 
 func WriteServiceEntry(path string, meta ServiceMeta, body string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil { // #nosec G301 -- wiki dirs are world-readable by design
 		return err
 	}
 	fm, err := yaml.Marshal(meta)
@@ -182,5 +182,5 @@ func WriteServiceEntry(path string, meta ServiceMeta, body string) error {
 		return err
 	}
 	content := fmt.Sprintf("---\n%s---\n%s", fm, body)
-	return os.WriteFile(path, []byte(content), 0644)
+	return os.WriteFile(path, []byte(content), 0644) // #nosec G306 -- wiki files are world-readable by design
 }

@@ -102,7 +102,7 @@ With --write, overwrites the target file in the project directory.`,
 				return nil
 			}
 
-			if err := os.WriteFile(targetPath, []byte(result), 0644); err != nil {
+			if err := os.WriteFile(targetPath, []byte(result), 0644); err != nil { // #nosec G306 G703 -- target is user-supplied CLI flag; 0644 is intentional for doc files
 				return fmt.Errorf("write %s: %w", targetPath, err)
 			}
 			fmt.Fprintf(os.Stderr, "Updated %s\n", targetPath)

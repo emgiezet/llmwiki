@@ -364,6 +364,22 @@ llmwiki remember --project my-api "retry logic uses exponential back-off with ji
 
 ---
 
+## Security
+
+llmwiki v1.0 shipped after a baseline security audit. Highlights:
+- Path-traversal rejection on all filesystem-bound inputs
+- Fenced + scrubbed LLM prompt/response pipeline
+- Loopback-only default for Ollama (SSRF defense)
+- Bounded subprocess and HTTP deadlines
+- Symlink-TOCTOU refused during directory walks
+
+See [SECURITY.md](SECURITY.md) for the threat model, supported versions, and
+how to report a vulnerability. The reproducible CI gate lives in
+[.github/workflows/security.yml](.github/workflows/security.yml); run it
+locally with `make security-scan`.
+
+---
+
 ## Who This Is For
 
 - **Consultants** juggling 5+ client codebases who can't afford to re-learn each one every Monday

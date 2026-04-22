@@ -34,6 +34,9 @@ go.work.sum
 # Superpowers brainstorm artifacts
 .superpowers/
 
+# graymatter local data (created when llmwiki runs in the repo)
+.graymatter/
+
 # Per-project llmwiki config (contains local paths)
 llmwiki.yaml
 

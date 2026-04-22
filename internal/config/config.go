@@ -61,7 +61,13 @@ func LoadGlobalConfig(path string) (GlobalConfig, error) {
 	if err != nil {
 		return cfg, err
 	}
-	return cfg, yaml.Unmarshal(data, &cfg)
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return cfg, err
+	}
+	if cfg.AnthropicAPIKey != "" {
+		fmt.Fprintln(os.Stderr, "warning: anthropic_api_key stored in plaintext in ~/.llmwiki/config.yaml — prefer the ANTHROPIC_API_KEY environment variable")
+	}
+	return cfg, nil
 }
 
 func LoadProjectConfig(projectDir string) (ProjectConfig, error) {

@@ -1,6 +1,8 @@
 package config_test
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -65,4 +67,52 @@ func TestMerge_GlobalFillsEmptyProject(t *testing.T) {
 	merged := config.Merge(global, project)
 	assert.Equal(t, "claude-code", merged.LLM)
 	assert.Equal(t, "acme", merged.Customer)
+}
+
+func TestLoadGlobalConfig_WarnsPlainterxtAPIKey(t *testing.T) {
+	dir := t.TempDir()
+	content := "anthropic_api_key: sk-ant-test123\n"
+	path := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+
+	// Capture stderr by redirecting os.Stderr.
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+
+	cfg, loadErr := config.LoadGlobalConfig(path)
+
+	w.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+
+	require.NoError(t, loadErr)
+	assert.Equal(t, "sk-ant-test123", cfg.AnthropicAPIKey)
+	assert.Contains(t, buf.String(), "anthropic_api_key stored in plaintext")
+}
+
+func TestLoadGlobalConfig_NoWarningWithoutAPIKey(t *testing.T) {
+	dir := t.TempDir()
+	content := "llm: claude-code\n"
+	path := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+
+	_, loadErr := config.LoadGlobalConfig(path)
+
+	w.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+
+	require.NoError(t, loadErr)
+	assert.NotContains(t, buf.String(), "anthropic_api_key")
 }

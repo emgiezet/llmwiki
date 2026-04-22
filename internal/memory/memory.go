@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/angelnicolasc/graymatter"
-	"github.com/mgz/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/config"
 )
 
 // Store wraps graymatter.Memory with llmwiki-specific agent naming and nil-safe no-op behavior.

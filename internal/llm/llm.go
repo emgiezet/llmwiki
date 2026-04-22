@@ -20,6 +20,10 @@ type Config struct {
 	// ClaudeBinaryPath overrides the PATH lookup for the 'claude' binary.
 	// Empty (default) = look up 'claude' via PATH.
 	ClaudeBinaryPath string
+	// MaxTokens caps the backend's output length. 0 means backend default.
+	// Claude API falls back to 8192 when zero; Ollama and claude-code pass the
+	// limit through only when non-zero.
+	MaxTokens int
 }
 
 // NewLLM returns the appropriate LLM backend.
@@ -31,7 +35,7 @@ func NewLLM(cfg Config) (LLM, error) {
 		if cfg.AnthropicAPIKey == "" {
 			return nil, fmt.Errorf("claude-api requires ANTHROPIC_API_KEY")
 		}
-		return NewClaudeAPILLM(cfg.AnthropicAPIKey), nil
+		return NewClaudeAPILLM(cfg.AnthropicAPIKey, cfg.MaxTokens), nil
 	case "ollama":
 		host := cfg.OllamaHost
 		if host == "" {
@@ -44,7 +48,7 @@ func NewLLM(cfg Config) (LLM, error) {
 		if model == "" {
 			model = "llama3.2"
 		}
-		return NewOllamaLLM(host, model), nil
+		return NewOllamaLLM(host, model, cfg.MaxTokens), nil
 	default:
 		return nil, fmt.Errorf("unknown LLM backend: %q (valid: claude-code, claude-api, ollama)", cfg.Backend)
 	}

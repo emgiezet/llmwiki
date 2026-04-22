@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/mgz/llmwiki/internal/safeio"
+	"github.com/emgiezet/llmwiki/internal/safeio"
 )
 
 // ScanResult holds the collected text from a project or service directory.

@@ -7,27 +7,38 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/mgz/llmwiki/internal/config"
-	"github.com/mgz/llmwiki/internal/llm"
-	"github.com/mgz/llmwiki/internal/memory"
-	"github.com/mgz/llmwiki/internal/scanner"
-	"github.com/mgz/llmwiki/internal/wiki"
+	"github.com/emgiezet/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/llm"
+	"github.com/emgiezet/llmwiki/internal/memory"
+	"github.com/emgiezet/llmwiki/internal/scanner"
+	"github.com/emgiezet/llmwiki/internal/wiki"
 )
 
 // IngestProject scans projectDir and writes wiki entries to cfg.WikiRoot.
 // mem may be nil to disable memory recall/storage.
 func IngestProject(ctx context.Context, projectDir, projectName string, cfg config.Merged, l llm.LLM, mem *memory.Store) error {
+	// Resolve extraction sections up front so a bad preset/section ID fails the
+	// run before we touch the scanner or the LLM.
+	projectSections, err := ResolveSections(cfg.Extraction, ScopeProject)
+	if err != nil {
+		return fmt.Errorf("resolve project sections: %w", err)
+	}
+	serviceSections, err := ResolveSections(cfg.Extraction, ScopeService)
+	if err != nil {
+		return fmt.Errorf("resolve service sections: %w", err)
+	}
+
 	services, err := scanner.DetectServices(projectDir)
 	if err != nil {
 		return err
 	}
 
 	if len(services) == 0 {
-		if err := ingestSingleService(ctx, projectDir, projectName, cfg, l, mem); err != nil {
+		if err := ingestSingleService(ctx, projectDir, projectName, cfg, l, mem, projectSections); err != nil {
 			return err
 		}
 	} else {
-		if err := ingestMultiService(ctx, projectDir, projectName, services, cfg, l, mem); err != nil {
+		if err := ingestMultiService(ctx, projectDir, projectName, services, cfg, l, mem, serviceSections); err != nil {
 			return err
 		}
 		// Generate project-level index for multi-service projects
@@ -51,7 +62,7 @@ func IngestProject(ctx context.Context, projectDir, projectName string, cfg conf
 	return nil
 }
 
-func ingestSingleService(ctx context.Context, projectDir, projectName string, cfg config.Merged, l llm.LLM, mem *memory.Store) error {
+func ingestSingleService(ctx context.Context, projectDir, projectName string, cfg config.Merged, l llm.LLM, mem *memory.Store, sections []Section) error {
 	scan, err := scanner.ScanProject(projectDir)
 	if err != nil {
 		return err
@@ -63,7 +74,7 @@ func ingestSingleService(ctx context.Context, projectDir, projectName string, cf
 	// Recall previous knowledge for prompt enrichment.
 	recalled, _ := mem.RecallForProject(ctx, projectName, cfg.Customer)
 
-	prompt := BuildProjectPrompt(projectName, scan.Summary, existing, recalled)
+	prompt := BuildProjectPrompt(projectName, scan.Summary, existing, recalled, sections, cfg.Extraction.MaxTokens)
 	body, err := l.Generate(ctx, prompt)
 	if err != nil {
 		return err
@@ -99,7 +110,7 @@ func ingestSingleService(ctx context.Context, projectDir, projectName string, cf
 	})
 }
 
-func ingestMultiService(ctx context.Context, projectDir, projectName string, services []scanner.ServiceDir, cfg config.Merged, l llm.LLM, mem *memory.Store) error {
+func ingestMultiService(ctx context.Context, projectDir, projectName string, services []scanner.ServiceDir, cfg config.Merged, l llm.LLM, mem *memory.Store, sections []Section) error {
 	// Recall project-level knowledge once for all services.
 	recalled, _ := mem.RecallForProject(ctx, projectName, cfg.Customer)
 
@@ -112,7 +123,7 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 		wikiPath := wikiFilePath(cfg.WikiRoot, cfg.Type, cfg.Customer, projectName, svc.Name)
 		existing := loadExistingServiceBody(wikiPath)
 
-		prompt := BuildServicePrompt(svc.Name, projectName, scan.Summary, existing, recalled)
+		prompt := BuildServicePrompt(svc.Name, projectName, scan.Summary, existing, recalled, sections, cfg.Extraction.MaxTokens)
 		body, err := l.Generate(ctx, prompt)
 		if err != nil {
 			return err

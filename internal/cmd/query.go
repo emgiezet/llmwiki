@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mgz/llmwiki/internal/config"
-	"github.com/mgz/llmwiki/internal/llm"
-	"github.com/mgz/llmwiki/internal/memory"
-	"github.com/mgz/llmwiki/internal/safeio"
+	"github.com/emgiezet/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/llm"
+	"github.com/emgiezet/llmwiki/internal/memory"
+	"github.com/emgiezet/llmwiki/internal/safeio"
 	"github.com/spf13/cobra"
 )
 

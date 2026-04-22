@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mgz/llmwiki/internal/wiki"
+	"github.com/emgiezet/llmwiki/internal/wiki"
 )
 
 // ProjectSummary holds extracted sections from a wiki entry for index prompts.

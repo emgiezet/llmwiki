@@ -6,19 +6,22 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/mgz/llmwiki/internal/config"
-	"github.com/mgz/llmwiki/internal/ingestion"
-	"github.com/mgz/llmwiki/internal/llm"
-	"github.com/mgz/llmwiki/internal/memory"
-	"github.com/mgz/llmwiki/internal/scanner"
-	"github.com/mgz/llmwiki/internal/validation"
-	"github.com/mgz/llmwiki/internal/wiki"
+	"github.com/emgiezet/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/ingestion"
+	"github.com/emgiezet/llmwiki/internal/llm"
+	"github.com/emgiezet/llmwiki/internal/memory"
+	"github.com/emgiezet/llmwiki/internal/scanner"
+	"github.com/emgiezet/llmwiki/internal/validation"
+	"github.com/emgiezet/llmwiki/internal/wiki"
 	"github.com/spf13/cobra"
 )
 
 func NewIngestCmd() *cobra.Command {
 	var service string
 	var noMemory bool
+	var preset string
+	var sectionsFlag []string
+	var maxTokens int
 
 	cmd := &cobra.Command{
 		Use:   "ingest <path>",
@@ -44,6 +47,17 @@ func NewIngestCmd() *cobra.Command {
 			}
 			cfg := config.Merge(global, project)
 
+			// CLI flag overrides for extraction (highest precedence).
+			if cmd.Flags().Changed("preset") {
+				cfg.Extraction.Preset = preset
+			}
+			if cmd.Flags().Changed("sections") {
+				cfg.Extraction.Sections = sectionsFlag
+			}
+			if cmd.Flags().Changed("max-tokens") {
+				cfg.Extraction.MaxTokens = maxTokens
+			}
+
 			// API key can also come from env
 			if cfg.AnthropicAPIKey == "" {
 				cfg.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")
@@ -56,6 +70,7 @@ func NewIngestCmd() *cobra.Command {
 				AllowRemoteOllama: cfg.AllowRemoteOllama,
 				AnthropicAPIKey:   cfg.AnthropicAPIKey,
 				ClaudeBinaryPath:  cfg.ClaudeBinaryPath,
+				MaxTokens:         cfg.Extraction.MaxTokens,
 			})
 			if err != nil {
 				return fmt.Errorf("init LLM: %w", err)
@@ -97,7 +112,12 @@ func NewIngestCmd() *cobra.Command {
 					recalled, _ = mem.RecallForProject(cmd.Context(), projectName, cfg.Customer)
 				}
 
-				prompt := ingestion.BuildServicePrompt(service, projectName, scan.Summary, existingBody, recalled)
+				serviceSections, err := ingestion.ResolveSections(cfg.Extraction, ingestion.ScopeService)
+				if err != nil {
+					return fmt.Errorf("resolve service sections: %w", err)
+				}
+
+				prompt := ingestion.BuildServicePrompt(service, projectName, scan.Summary, existingBody, recalled, serviceSections, cfg.Extraction.MaxTokens)
 				body, genErr := l.Generate(cmd.Context(), prompt)
 				if genErr != nil {
 					return genErr
@@ -134,5 +154,8 @@ func NewIngestCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&service, "service", "", "Ingest only a specific service subdirectory")
 	cmd.Flags().BoolVar(&noMemory, "no-memory", false, "Disable memory recall/storage for this run")
+	cmd.Flags().StringVar(&preset, "preset", "", "Extraction preset (default|minimal|software|feature|full) — overrides llmwiki.yaml")
+	cmd.Flags().StringSliceVar(&sectionsFlag, "sections", nil, "Comma-separated section IDs to extract — overrides llmwiki.yaml and --preset")
+	cmd.Flags().IntVar(&maxTokens, "max-tokens", 0, "Cap LLM output tokens per call (0 = backend default)")
 	return cmd
 }

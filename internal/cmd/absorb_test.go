@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/mgz/llmwiki/internal/cmd"
+	"github.com/emgiezet/llmwiki/internal/cmd"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

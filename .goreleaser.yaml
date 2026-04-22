@@ -1,0 +1,61 @@
+# Goreleaser v2 config for llmwiki.
+# Reference: https://goreleaser.com/customization/
+version: 2
+
+project_name: llmwiki
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: llmwiki
+    main: ./
+    binary: llmwiki
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/emgiezet/llmwiki/internal/version.Version={{.Version}}
+      - -X github.com/emgiezet/llmwiki/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/emgiezet/llmwiki/internal/version.Date={{.Date}}
+
+archives:
+  - id: default
+    ids: [llmwiki]
+    # install.sh expects: llmwiki_<version>_<os>_<arch>.tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    files:
+      - README.md
+      - LICENSE*
+      - CHANGELOG.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  # release-please maintains CHANGELOG.md; we skip goreleaser's generated
+  # changelog to avoid a second source of truth.
+  disable: true
+
+release:
+  # release-please creates the GitHub Release already; goreleaser attaches
+  # assets to it.
+  draft: false
+  prerelease: auto
+  # Ship install.sh alongside each release so users who want a version-pinned
+  # installer (reproducible builds) can curl the per-release asset instead of
+  # the one on main.
+  extra_files:
+    - glob: ./install.sh

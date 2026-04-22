@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mgz/llmwiki/internal/safeio"
+	"github.com/emgiezet/llmwiki/internal/safeio"
 )
 
 // LinkTarget represents a wiki entity that can be linked to.

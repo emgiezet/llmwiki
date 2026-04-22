@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mgz/llmwiki/internal/validation"
+	"github.com/emgiezet/llmwiki/internal/validation"
 )
 
 // TestNameComponent_BlocksTraversal is a belt-and-suspenders test that

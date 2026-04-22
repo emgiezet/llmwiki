@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mgz/llmwiki/internal/validation"
+	"github.com/emgiezet/llmwiki/internal/validation"
 	"gopkg.in/yaml.v3"
 )
 

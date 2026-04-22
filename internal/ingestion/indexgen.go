@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mgz/llmwiki/internal/llm"
-	"github.com/mgz/llmwiki/internal/wiki"
+	"github.com/emgiezet/llmwiki/internal/llm"
+	"github.com/emgiezet/llmwiki/internal/wiki"
 )
 
 // GenerateMultiProjectIndex generates a project-level _index.md for multi-service projects.

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/mgz/llmwiki/internal/config"
 	"github.com/mgz/llmwiki/internal/ingestion"
@@ -88,7 +89,25 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 
 			if fastFail {
 				if err := memory.ProbeLock(cfg.MemoryDir); errors.Is(err, memory.ErrLockBusy) {
-					fmt.Fprintln(os.Stderr, "warning: memory db busy — skipping absorb (another llmwiki or graymatter process holds the lock)")
+					// DB is busy; queue the session instead of dropping it.
+					content, berr := ingestion.BuildSessionContent(projectDir, note)
+					if berr != nil {
+						if errors.Is(berr, ingestion.ErrNothingToAbsorb) {
+							fmt.Fprintln(os.Stderr, "warning: memory db busy and nothing to queue — skipping")
+							return nil
+						}
+						return fmt.Errorf("build session content: %w", berr)
+					}
+					qerr := memory.QueueAbsorb(cfg.MemoryDir, memory.QueuedAbsorb{
+						Timestamp:   time.Now().UTC(),
+						ProjectName: projectName,
+						Customer:    resolvedCustomer,
+						Content:     content,
+					})
+					if qerr != nil {
+						return fmt.Errorf("queue absorb: %w", qerr)
+					}
+					fmt.Fprintln(os.Stderr, "warning: memory db busy — queued session for later processing")
 					return nil
 				}
 			}
@@ -98,6 +117,12 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 				return fmt.Errorf("init memory: %w", err)
 			}
 			defer mem.Close()
+
+			if res, derr := memory.DrainAbsorbQueue(cmd.Context(), cfg.MemoryDir, mem); derr != nil {
+				fmt.Fprintf(os.Stderr, "warning: queue drain failed: %v\n", derr)
+			} else if res.Processed > 0 || res.Requeued > 0 {
+				fmt.Fprintf(os.Stderr, "drained %d queued absorb(s); %d requeued\n", res.Processed, res.Requeued)
+			}
 
 			if err := ingestion.AbsorbSession(cmd.Context(), projectDir, projectName, resolvedCustomer, note, mem); err != nil {
 				if errors.Is(err, ingestion.ErrNothingToAbsorb) {

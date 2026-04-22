@@ -25,6 +25,7 @@ func main() {
 		cmd.NewRecallCmd(),
 		cmd.NewDocsCmd(),
 		cmd.NewAbsorbCmd(),
+		cmd.NewDrainCmd(),
 		cmd.NewMaterializeCmd(),
 		cmd.NewHookCmd(),
 	)

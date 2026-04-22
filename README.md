@@ -202,6 +202,7 @@ Generates a client-level `_index.md` with executive summary, C4 diagram, archite
 | `absorb <path>` | Extract session facts into memory (near-zero token cost) |
 | `absorb <path> --note "..."` | Absorb with an explicit session note |
 | `absorb <path> --note-stdin` | Absorb note piped from stdin (used by the Claude Code hook) |
+| `absorb-drain` | Drain queued absorb sessions (created when the memory DB was busy) |
 | `materialize <project>` | Rebuild wiki from accumulated memory facts (~10× cheaper than ingest) |
 | `list` | List all tracked projects |
 | `context <project>` | Print wiki context (pipe into CLAUDE.md) |
@@ -351,6 +352,10 @@ ln -s /path/to/llmwiki/plugin ~/.claude/plugins/llmwiki
 - `memory_enabled: true` in `~/.llmwiki/config.yaml`
 - `llmwiki` in your `$PATH` (so the hook script can call it)
 - Python 3 (used by the hook script; standard on macOS and most Linux distros)
+
+### Lock contention and the absorb queue
+
+If the Stop hook fires while another process holds the memory DB (for example, you have `graymatter tui` open), llmwiki appends the session to a local queue file (`~/.llmwiki/memory/absorb-queue.jsonl` by default). The queue is drained the next time `llmwiki absorb` runs successfully, or explicitly via `llmwiki absorb-drain`.
 
 ### Incremental wiki building
 

@@ -18,6 +18,7 @@ import (
 func NewAbsorbCmd() *cobra.Command {
 	var project, customer, note string
 	var noteStdin bool
+	var fastFail bool
 
 	cmd := &cobra.Command{
 		Use:   "absorb <dir>",
@@ -85,6 +86,13 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 				return nil
 			}
 
+			if fastFail {
+				if err := memory.ProbeLock(cfg.MemoryDir); errors.Is(err, memory.ErrLockBusy) {
+					fmt.Fprintln(os.Stderr, "warning: memory db busy — skipping absorb (another llmwiki or graymatter process holds the lock)")
+					return nil
+				}
+			}
+
 			mem, err := memory.NewFromConfig(cfg)
 			if err != nil {
 				return fmt.Errorf("init memory: %w", err)
@@ -108,5 +116,6 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 	cmd.Flags().StringVar(&customer, "customer", "", "Customer name (defaults to llmwiki.yaml customer)")
 	cmd.Flags().StringVar(&note, "note", "", "Free-form description of what was worked on this session")
 	cmd.Flags().BoolVar(&noteStdin, "note-stdin", false, "Read the session note from stdin (use when piping from hook scripts)")
+	cmd.Flags().BoolVar(&fastFail, "fast-fail", false, "If the memory DB is held by another process, skip instead of waiting (used by the Stop hook)")
 	return cmd
 }

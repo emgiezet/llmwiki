@@ -93,13 +93,21 @@ def main():
             sys.exit(0)
 
         note = last_text[:MAX_NOTE_CHARS]
-        subprocess.run(
-            ["llmwiki", "absorb", cwd, "--note-stdin"],
-            input=note,
-            text=True,
-            timeout=30,
-            capture_output=True,
-        )
+        try:
+            result = subprocess.run(
+                ["llmwiki", "absorb", cwd, "--note-stdin", "--fast-fail"],
+                input=note,
+                text=True,
+                timeout=30,
+                capture_output=True,
+            )
+            if result.stderr and "memory db busy" in result.stderr:
+                log_path = os.path.join(os.path.expanduser("~"), ".llmwiki", "hook.log")
+                os.makedirs(os.path.dirname(log_path), exist_ok=True)
+                with open(log_path, "a", encoding="utf-8") as logf:
+                    logf.write(result.stderr)
+        except Exception:
+            pass
     except Exception as exc:
         try:
             log_path = os.path.join(os.path.expanduser("~"), ".llmwiki", "hook.log")

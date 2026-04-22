@@ -54,12 +54,25 @@ func (s *Store) Enabled() bool {
 	return s != nil && s.mem != nil && s.mem.Healthy()
 }
 
-// Close flushes and closes the underlying store.
+// Close releases the underlying graymatter handle. We cap the wait at 3s
+// because graymatter's internal Close() blocks on async consolidation
+// goroutines that may make LLM calls; in hook-triggered paths we can't
+// afford to hold the bbolt lock indefinitely. bbolt is crash-safe, so
+// any interrupted writes recover on next open.
 func (s *Store) Close() error {
 	if s == nil || s.mem == nil {
 		return nil
 	}
-	return s.mem.Close()
+	done := make(chan error, 1)
+	go func() {
+		done <- s.mem.Close()
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(3 * time.Second):
+		return nil
+	}
 }
 
 func projectAgent(name string) string  { return "llmwiki/project/" + name }

@@ -87,13 +87,22 @@ def main():
                 if "JSONDecodeError" not in log_content:
                     failures.append(f"D14: hook.log missing JSONDecodeError, got: {log_content!r}")
 
+    # Case 5: verify the hook still loads and parses correctly after the
+    # --fast-fail change.  We can't run a real llmwiki binary in this harness,
+    # but we can confirm the script syntax is valid and that the busy-warning
+    # branch string is present in the embedded script.
+    if "--fast-fail" not in script:
+        failures.append("Case 5: '--fast-fail' flag missing from embedded hook script")
+    if "memory db busy" not in script:
+        failures.append("Case 5: 'memory db busy' string missing from embedded hook script")
+
     os.unlink(script_path)
 
     if failures:
         for f in failures:
             print(f"FAIL: {f}", file=sys.stderr)
         sys.exit(1)
-    print("all transcript-path hardening cases pass (including D14 exception logging)")
+    print("all transcript-path hardening cases pass (including D14 exception logging and fast-fail flag)")
 
 
 if __name__ == "__main__":

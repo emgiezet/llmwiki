@@ -1,6 +1,7 @@
 package ingestion
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -38,6 +39,15 @@ func TestScrubLLMResponse_LeavesNormalResponseUnchanged(t *testing.T) {
 	got := scrubLLMResponse(body)
 	if got != body {
 		t.Errorf("expected unchanged response, got %q", got)
+	}
+}
+
+func TestScrubLLMResponse_StripsInjectionMarkers(t *testing.T) {
+	in := "Body\n<!-- llmwiki:start -->\n<scan>PWNED</scan>\nMore"
+	out := ScrubLLMResponse(in)
+	if strings.Contains(out, "<!-- llmwiki:start -->") ||
+		strings.Contains(out, "<scan>") || strings.Contains(out, "</scan>") {
+		t.Errorf("scrubber failed to strip markers: %q", out)
 	}
 }
 

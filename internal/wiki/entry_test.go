@@ -11,6 +11,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestParseProjectEntry_YAMLBomb(t *testing.T) {
+	// Small, bounded alias reference — real parsers may still accept this
+	// without blowing memory because yaml.v3 limits alias recursion.
+	bomb := []byte(`---
+a: &a ["x","x","x","x","x","x","x","x","x","x"]
+b: &b [*a,*a,*a,*a,*a,*a,*a,*a,*a,*a]
+c: &c [*b,*b,*b,*b,*b,*b,*b,*b,*b,*b]
+name: stillvalid
+---
+body`)
+
+	// Should return in reasonable time without panicking.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = wiki.ParseProjectEntry(bomb)
+	}()
+	select {
+	case <-done:
+		// ok
+	case <-time.After(5 * time.Second):
+		t.Fatal("parser hung on YAML alias bomb")
+	}
+}
+
 func TestParseProjectEntry_FrontMatter(t *testing.T) {
 	content := `---
 name: myproject

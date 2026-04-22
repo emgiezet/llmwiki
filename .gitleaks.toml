@@ -1,0 +1,13 @@
+title = "llmwiki gitleaks config"
+
+# Inherit default rules
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Intentional test fixtures and docs"
+paths = [
+  '''internal/.*_test\.go''',
+  '''docs/.*''',
+  '''README\.md''',
+]

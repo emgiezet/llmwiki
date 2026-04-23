@@ -64,13 +64,17 @@ func NewIngestCmd() *cobra.Command {
 			}
 
 			l, err := llm.NewLLM(llm.Config{
-				Backend:           cfg.LLM,
-				OllamaHost:        cfg.OllamaHost,
-				OllamaModel:       cfg.OllamaModel,
-				AllowRemoteOllama: cfg.AllowRemoteOllama,
-				AnthropicAPIKey:   cfg.AnthropicAPIKey,
-				ClaudeBinaryPath:  cfg.ClaudeBinaryPath,
-				MaxTokens:         cfg.Extraction.MaxTokens,
+				Backend:            cfg.LLM,
+				OllamaHost:         cfg.OllamaHost,
+				OllamaModel:        cfg.OllamaModel,
+				AllowRemoteOllama:  cfg.AllowRemoteOllama,
+				AnthropicAPIKey:    cfg.AnthropicAPIKey,
+				ClaudeBinaryPath:   cfg.ClaudeBinaryPath,
+				GeminiBinaryPath:   cfg.GeminiBinaryPath,
+				CodexBinaryPath:    cfg.CodexBinaryPath,
+				OpencodeBinaryPath: cfg.OpencodeBinaryPath,
+				PiBinaryPath:       cfg.PiBinaryPath,
+				MaxTokens:          cfg.Extraction.MaxTokens,
 			})
 			if err != nil {
 				return fmt.Errorf("init LLM: %w", err)

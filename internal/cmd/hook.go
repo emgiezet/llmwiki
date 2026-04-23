@@ -1,291 +1,141 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
-	"os/exec"
-	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
 
-const stopHookScript = `#!/usr/bin/env python3
-"""
-llmwiki Claude Code Stop Hook
-Reads Stop hook JSON from stdin, extracts the last analytical assistant
-response, and pipes it to 'llmwiki absorb <cwd> --note-stdin'.
-Always exits 0 — never blocks Claude.
-"""
-import json
-import os
-import os.path
-import subprocess
-import sys
-
-MIN_RESPONSE_CHARS = 300
-MAX_NOTE_CHARS = 2000
-ANALYTICAL_TOOLS = {"Read", "Grep", "Glob", "Bash"}
-RECENT_WINDOW = 20
-
-ALLOWED_TRANSCRIPT_PREFIX = os.path.realpath(os.path.expanduser("~/.claude/projects"))
-
-
-def _is_safe_transcript_path(path):
-    try:
-        real = os.path.realpath(path)
-    except OSError:
-        return False
-    return real == ALLOWED_TRANSCRIPT_PREFIX or real.startswith(ALLOWED_TRANSCRIPT_PREFIX + os.sep)
-
-
-def extract_last_response(transcript_path):
-    try:
-        with open(transcript_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-    except OSError:
-        return None, set()
-
-    last_text = None
-    recent_tools = set()
-    window = lines[-RECENT_WINDOW:] if len(lines) > RECENT_WINDOW else lines
-
-    for raw in window:
-        raw = raw.strip()
-        if not raw:
-            continue
-        try:
-            msg = json.loads(raw)
-        except json.JSONDecodeError:
-            continue
-
-        entry_type = msg.get("type", "")
-        inner = msg.get("message")
-        if not isinstance(inner, dict):
-            inner = msg
-
-        content = inner.get("content", "")
-        is_assistant = entry_type == "assistant" or inner.get("role") == "assistant"
-
-        if isinstance(content, list):
-            for block in content:
-                if not isinstance(block, dict):
-                    continue
-                block_type = block.get("type", "")
-                if block_type == "text" and is_assistant:
-                    last_text = block.get("text", last_text)
-                elif block_type == "tool_use":
-                    tname = block.get("name", "")
-                    if tname in ANALYTICAL_TOOLS:
-                        recent_tools.add(tname)
-        elif isinstance(content, str) and is_assistant:
-            last_text = content
-
-    return last_text, recent_tools
-
-
-def main():
-    try:
-        event = json.loads(sys.stdin.read())
-        cwd = event.get("cwd", "")
-        transcript_path = event.get("transcript_path", "")
-
-        if not cwd or not transcript_path:
-            sys.exit(0)
-
-        if not _is_safe_transcript_path(transcript_path):
-            sys.exit(0)
-
-        last_text, recent_tools = extract_last_response(transcript_path)
-
-        if not last_text or len(last_text) < MIN_RESPONSE_CHARS:
-            sys.exit(0)
-
-        if not recent_tools.intersection(ANALYTICAL_TOOLS):
-            sys.exit(0)
-
-        note = last_text[:MAX_NOTE_CHARS]
-        try:
-            result = subprocess.run(
-                ["llmwiki", "absorb", cwd, "--note-stdin", "--fast-fail"],
-                input=note,
-                text=True,
-                timeout=30,
-                capture_output=True,
-            )
-            if result.stderr and "memory db busy" in result.stderr:
-                log_path = os.path.join(os.path.expanduser("~"), ".llmwiki", "hook.log")
-                os.makedirs(os.path.dirname(log_path), exist_ok=True)
-                with open(log_path, "a", encoding="utf-8") as logf:
-                    logf.write(f"{os.path.basename(__file__)}: {result.stderr}")
-        except Exception:
-            pass
-    except Exception as exc:
-        try:
-            log_path = os.path.join(os.path.expanduser("~"), ".llmwiki", "hook.log")
-            os.makedirs(os.path.dirname(log_path), exist_ok=True)
-            with open(log_path, "a", encoding="utf-8") as logf:
-                logf.write(f"{os.path.basename(__file__)}: {type(exc).__name__}: {exc}\n")
-        except Exception:
-            pass
-    sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()
-`
-
-const pluginManifest = `{
-  "name": "llmwiki",
-  "description": "Captures analytical Claude Code sessions into graymatter memory via llmwiki absorb",
-  "author": {
-    "name": "Max Małecki"
-  },
-  "version": "1.0.0"
+// toolHook is the interface every per-tool hook installer implements. Each
+// tool's install/uninstall/status logic lives in its own file (hook_claude_code.go,
+// hook_codex.go, etc.) so the dispatcher stays small.
+type toolHook interface {
+	// Name returns the short tool name used on the command line (e.g. "claude-code").
+	Name() string
+	// Install writes the hook (and any migration) so the tool begins forwarding
+	// session endings to `llmwiki absorb`. Idempotent on repeated calls.
+	Install() error
+	// Uninstall reverses Install. Leaves user-authored config untouched.
+	Uninstall() error
+	// Status reports whether the hook is currently installed; path is the
+	// tool-specific location (for display only, empty when not installed).
+	Status() (installed bool, path string, err error)
 }
-`
 
-const hooksConfig = `{
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/stop-hook.py",
-            "timeout": 30
-          }
-        ]
-      }
-    ]
-  }
+// toolHooks is the registry of installers. Edit this when adding a new tool.
+var toolHooks = map[string]toolHook{
+	"claude-code": &claudeCodeHook{},
+	"codex":       &codexHook{},
+	"opencode":    &opencodeHook{},
+	"pi":          &piHook{},
+	"gemini-cli":  &geminiCLIHook{},
 }
-`
+
+func toolNamesSorted() []string {
+	names := make([]string, 0, len(toolHooks))
+	for n := range toolHooks {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// resolveTool maps a positional arg to either one installer or the full set
+// (when the user passes "all"). Unknown values produce a helpful error.
+func resolveTool(name string) ([]toolHook, error) {
+	if name == "all" {
+		names := toolNamesSorted()
+		out := make([]toolHook, 0, len(names))
+		for _, n := range names {
+			out = append(out, toolHooks[n])
+		}
+		return out, nil
+	}
+	if h, ok := toolHooks[name]; ok {
+		return []toolHook{h}, nil
+	}
+	return nil, fmt.Errorf("unknown tool %q — valid: %s, all", name, strings.Join(toolNamesSorted(), ", "))
+}
 
 func NewHookCmd() *cobra.Command {
 	hook := &cobra.Command{
 		Use:   "hook",
-		Short: "Manage Claude Code Stop hooks for automatic session absorption",
+		Short: "Manage session-capture hooks across agentic coding tools",
+		Long: `Installs, uninstalls, and inspects the llmwiki hook for each supported
+agentic coding tool (claude-code, codex, opencode, pi, gemini-cli). Each
+hook captures end-of-session assistant responses and forwards them to
+'llmwiki absorb' so knowledge accumulates in graymatter memory.`,
 	}
 	hook.AddCommand(newHookInstallCmd(), newHookUninstallCmd(), newHookStatusCmd())
 	return hook
 }
 
-func defaultPluginDir() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".claude", "plugins", "llmwiki")
-}
-
-func writePlugin(pluginDir string) error {
-	manifestDir := filepath.Join(pluginDir, ".claude-plugin")
-	if err := os.MkdirAll(manifestDir, 0755); err != nil { // #nosec G301 -- plugin dirs must be 0755 for Claude Code discovery
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(manifestDir, "plugin.json"), []byte(pluginManifest), 0644); err != nil { // #nosec G306 -- plugin manifest is world-readable by design
-		return err
-	}
-
-	hooksDir := filepath.Join(pluginDir, "hooks")
-	if err := os.MkdirAll(hooksDir, 0755); err != nil { // #nosec G301 -- plugin dirs must be 0755 for Claude Code discovery
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(hooksDir, "hooks.json"), []byte(hooksConfig), 0644); err != nil { // #nosec G306 -- hook config is world-readable by design
-		return err
-	}
-	return os.WriteFile(filepath.Join(hooksDir, "stop-hook.py"), []byte(stopHookScript), 0755) // #nosec G306 -- hook script must be executable
-}
-
 func newHookInstallCmd() *cobra.Command {
-	var pluginDir string
-	var showSnippet bool
-
-	cmd := &cobra.Command{
-		Use:   "install",
-		Short: "Install llmwiki as a Claude Code plugin (auto-discovered, no settings.json edit needed)",
+	return &cobra.Command{
+		Use:   "install <tool>",
+		Short: "Install the llmwiki hook for a specific tool (or 'all')",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if pluginDir == "" {
-				pluginDir = defaultPluginDir()
+			hooks, err := resolveTool(args[0])
+			if err != nil {
+				return err
 			}
-
-			if err := writePlugin(pluginDir); err != nil {
-				return fmt.Errorf("write plugin: %w", err)
-			}
-
-			if _, err := exec.LookPath("llmwiki"); err != nil {
-				fmt.Fprintln(cmd.ErrOrStderr(), "warning: 'llmwiki' not found in PATH — add it before using the hook")
-			}
-
-			fmt.Fprintf(cmd.OutOrStdout(), "Plugin installed at %s\nRestart Claude Code to activate.\n", pluginDir)
-
-			if showSnippet {
-				fmt.Fprintln(cmd.OutOrStdout(), claudeMDSnippet())
+			for _, h := range hooks {
+				if err := h.Install(); err != nil {
+					return fmt.Errorf("install %s: %w", h.Name(), err)
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "installed: %s\n", h.Name())
 			}
 			return nil
 		},
 	}
-
-	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Plugin installation directory (default: ~/.claude/plugins/llmwiki)")
-	cmd.Flags().BoolVar(&showSnippet, "show-snippet", false, "Print recommended CLAUDE.md addition")
-	return cmd
 }
 
 func newHookUninstallCmd() *cobra.Command {
-	var pluginDir string
-
-	cmd := &cobra.Command{
-		Use:   "uninstall",
-		Short: "Remove the llmwiki Claude Code plugin",
+	return &cobra.Command{
+		Use:   "uninstall <tool>",
+		Short: "Remove the llmwiki hook for a specific tool (or 'all')",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if pluginDir == "" {
-				pluginDir = defaultPluginDir()
+			hooks, err := resolveTool(args[0])
+			if err != nil {
+				return err
 			}
-			if err := os.RemoveAll(pluginDir); err != nil {
-				return fmt.Errorf("remove plugin: %w", err)
+			for _, h := range hooks {
+				if err := h.Uninstall(); err != nil {
+					return fmt.Errorf("uninstall %s: %w", h.Name(), err)
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "uninstalled: %s\n", h.Name())
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), "Plugin uninstalled.")
 			return nil
 		},
 	}
-
-	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Plugin directory to remove (default: ~/.claude/plugins/llmwiki)")
-	return cmd
 }
 
 func newHookStatusCmd() *cobra.Command {
-	var pluginDir string
-
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "status",
-		Short: "Show whether the llmwiki Claude Code plugin is installed",
+		Short: "Show which per-tool hooks are installed",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if pluginDir == "" {
-				pluginDir = defaultPluginDir()
-			}
-			manifestPath := filepath.Join(pluginDir, ".claude-plugin", "plugin.json")
-			_, err := os.Stat(manifestPath)
-			if err != nil {
-				if errors.Is(err, fs.ErrNotExist) {
-					fmt.Fprintln(cmd.OutOrStdout(), "not installed")
-				} else {
-					fmt.Fprintf(cmd.OutOrStdout(), "not installed (could not read plugin dir: %v)\n", err)
+			out := cmd.OutOrStdout()
+			fmt.Fprintln(out, "tool         installed  path")
+			for _, name := range toolNamesSorted() {
+				h := toolHooks[name]
+				installed, path, err := h.Status()
+				status := "no"
+				if installed {
+					status = "yes"
 				}
-				return nil
+				if err != nil {
+					fmt.Fprintf(out, "%-12s %-10s (error: %v)\n", name, status, err)
+					continue
+				}
+				fmt.Fprintf(out, "%-12s %-10s %s\n", name, status, path)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "installed: %s\n", pluginDir)
 			return nil
 		},
 	}
-
-	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Plugin directory to check (default: ~/.claude/plugins/llmwiki)")
-	return cmd
-}
-
-func claudeMDSnippet() string {
-	return `
-Add to your project CLAUDE.md to capture explicit insights:
-
-  When you discover how a non-obvious system, component, or pattern works,
-  run: llmwiki remember --project <project> "<concise single-sentence insight>"
-`
 }

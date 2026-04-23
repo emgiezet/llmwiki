@@ -39,7 +39,7 @@ func NewQueryCmd() *cobra.Command {
 			}
 
 			// Initialize memory store if enabled.
-			cfg := config.Merge(global, config.ProjectConfig{})
+			cfg := config.Merge(global, config.ClientConfig{}, config.ProjectConfig{})
 			var memoryContext string
 			if cfg.MemoryEnabled {
 				mem, memErr := memory.NewFromConfig(cfg)

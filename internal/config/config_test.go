@@ -55,7 +55,7 @@ func TestLoadProjectConfig_Missing(t *testing.T) {
 func TestMerge_ProjectOverridesGlobal(t *testing.T) {
 	global := config.GlobalConfig{LLM: "claude-code", WikiRoot: "~/wiki", OllamaHost: "http://localhost:11434"}
 	project := config.ProjectConfig{LLM: "ollama", OllamaModel: "llama3.2"}
-	merged := config.Merge(global, project)
+	merged := config.Merge(global, config.ClientConfig{}, project)
 	assert.Equal(t, "ollama", merged.LLM)
 	assert.Equal(t, "llama3.2", merged.OllamaModel)
 	assert.Equal(t, "~/wiki", merged.WikiRoot)
@@ -64,7 +64,7 @@ func TestMerge_ProjectOverridesGlobal(t *testing.T) {
 func TestMerge_GlobalFillsEmptyProject(t *testing.T) {
 	global := config.GlobalConfig{LLM: "claude-code", WikiRoot: "~/wiki", OllamaHost: "http://localhost:11434"}
 	project := config.ProjectConfig{Customer: "acme"}
-	merged := config.Merge(global, project)
+	merged := config.Merge(global, config.ClientConfig{}, project)
 	assert.Equal(t, "claude-code", merged.LLM)
 	assert.Equal(t, "acme", merged.Customer)
 }
@@ -120,7 +120,7 @@ func TestMerge_ExtractionCarriedFromProject(t *testing.T) {
 			MaxTokens: 1500,
 		},
 	}
-	merged := config.Merge(global, project)
+	merged := config.Merge(global, config.ClientConfig{}, project)
 	assert.Equal(t, "minimal", merged.Extraction.Preset)
 	assert.Equal(t, 1500, merged.Extraction.MaxTokens)
 }

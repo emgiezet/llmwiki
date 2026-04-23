@@ -45,7 +45,14 @@ func NewIngestCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("load project config: %w", err)
 			}
-			cfg := config.Merge(global, project)
+			// Client baseline (~/.llmwiki/clients/<customer>.yaml) fills in
+			// defaults for every project under the same customer. Missing
+			// file is not an error.
+			client, err := config.LoadClientConfig(project.Customer)
+			if err != nil {
+				return fmt.Errorf("load client config: %w", err)
+			}
+			cfg := config.Merge(global, client, project)
 
 			// CLI flag overrides for extraction (highest precedence).
 			if cmd.Flags().Changed("preset") {

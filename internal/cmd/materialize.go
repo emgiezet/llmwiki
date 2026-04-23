@@ -38,7 +38,14 @@ Requires prior 'absorb' sessions or 'ingest' to populate memory.`,
 			if err != nil {
 				return fmt.Errorf("load global config: %w", err)
 			}
-			cfg := config.Merge(global, config.ProjectConfig{
+			// materialize reconstructs a wiki entry from memory for a
+			// specific customer; loading the client baseline lets customer-
+			// wide LLM / extraction defaults apply.
+			clientCfg, err := config.LoadClientConfig(customer)
+			if err != nil {
+				return fmt.Errorf("load client config: %w", err)
+			}
+			cfg := config.Merge(global, clientCfg, config.ProjectConfig{
 				Customer: customer,
 				Type:     projectType,
 			})

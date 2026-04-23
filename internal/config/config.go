@@ -115,30 +115,7 @@ func LoadProjectConfig(projectDir string) (ProjectConfig, error) {
 	return cfg, nil
 }
 
-func Merge(g GlobalConfig, p ProjectConfig) Merged {
-	memDir := g.MemoryDir
-	if memDir == "" {
-		memDir = filepath.Join(homeDir(), ".llmwiki", "memory")
-	}
-	m := Merged{
-		WikiRoot:          g.WikiRoot,
-		LLM:               g.LLM,
-		OllamaHost:        g.OllamaHost,
-		AllowRemoteOllama: g.AllowRemoteOllama,
-		AnthropicAPIKey:   g.AnthropicAPIKey,
-		Customer:          p.Customer,
-		Type:              p.Type,
-		OllamaModel:       p.OllamaModel,
-		MemoryEnabled:     g.MemoryEnabled,
-		MemoryDir:         memDir,
-		ClaudeBinaryPath:  g.ClaudeBinaryPath,
-		Extraction:        p.Extraction,
-	}
-	if p.LLM != "" {
-		m.LLM = p.LLM
-	}
-	return m
-}
+// Merge lives in merge.go — see that file for the three-way resolver.
 
 // DefaultGlobalConfigPath returns ~/.llmwiki/config.yaml
 func DefaultGlobalConfigPath() string {

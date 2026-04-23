@@ -147,7 +147,7 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 		_ = mem.RememberServiceIngestion(ctx, projectName, svc.Name, cfg.Customer, body, tags)
 	}
 
-	indexPath := filepath.Join(cfg.WikiRoot, TypeToDir(cfg.Type), cfg.Customer, projectName, "_index.md")
+	indexPath := filepath.Join(cfg.WikiRoot, TypeToDir(cfg.Type), cfg.Customer, projectName, wiki.IndexFileName(cfg.Customer, projectName))
 	relPath, _ := filepath.Rel(cfg.WikiRoot, indexPath)
 	return wiki.UpsertIndex(filepath.Join(cfg.WikiRoot, "_index.md"), wiki.IndexEntry{
 		Name:     projectName,

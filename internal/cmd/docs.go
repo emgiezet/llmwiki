@@ -116,11 +116,15 @@ With --write, overwrites the target file in the project directory.`,
 
 // loadWikiBody searches for the project's wiki entry and returns its body.
 func loadWikiBody(wikiRoot, projectType, customer, projectName string) string {
+	// The index-dir patterns use *_index.md to match both v1.1.1+
+	// "{customer}_{project}_index.md" and the legacy "_index.md".
 	patterns := []string{
 		filepath.Join(wikiRoot, "clients", "*", projectName+".md"),
-		filepath.Join(wikiRoot, "clients", "*", projectName, "_index.md"),
+		filepath.Join(wikiRoot, "clients", "*", projectName, "*_index.md"),
 		filepath.Join(wikiRoot, "personal", projectName+".md"),
+		filepath.Join(wikiRoot, "personal", projectName, "*_index.md"),
 		filepath.Join(wikiRoot, "opensource", projectName+".md"),
+		filepath.Join(wikiRoot, "opensource", projectName, "*_index.md"),
 	}
 	for _, pattern := range patterns {
 		matches, _ := filepath.Glob(pattern)

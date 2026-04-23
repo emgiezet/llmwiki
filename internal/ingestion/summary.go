@@ -38,7 +38,7 @@ func ReadProjectSummaries(wikiRoot, customer string) ([]ProjectSummary, error) {
 
 	var summaries []ProjectSummary
 	for _, e := range entries {
-		if e.Name() == "_index.md" {
+		if wiki.IsIndexFileName(e.Name()) {
 			continue
 		}
 		path := filepath.Join(customerDir, e.Name())
@@ -69,7 +69,7 @@ func ReadServiceSummaries(projectDir string) ([]ServiceSummary, error) {
 	}
 	var summaries []ServiceSummary
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") || e.Name() == "_index.md" {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") || wiki.IsIndexFileName(e.Name()) {
 			continue
 		}
 		data, err := os.ReadFile(filepath.Join(projectDir, e.Name()))
@@ -115,16 +115,19 @@ func readMultiServiceSummary(dirPath, name string) (ProjectSummary, error) {
 	if err != nil {
 		return ProjectSummary{}, err
 	}
-	// Also try reading project _index.md if it exists
+	// Also try reading project index file if it exists. The name may be
+	// "{customer}_{project}_index.md" (v1.1.1+) or the legacy "_index.md";
+	// a glob finds either, picking whichever the writer produced.
 	var domain, arch, integrations, techStack string
-	indexPath := filepath.Join(dirPath, "_index.md")
-	if data, err := os.ReadFile(indexPath); err == nil {
-		if entry, err := wiki.ParseMultiProjectEntry(data); err == nil {
-			domain = wiki.TruncateSection(wiki.ExtractSection(entry.Body, "## Domain"), 500)
-			arch = wiki.TruncateSection(wiki.ExtractSection(entry.Body, "## Architecture"), 500)
-			integrations = wiki.TruncateSection(wiki.ExtractSection(entry.Body, "## Integrations"), 500)
-			techStack = wiki.TruncateSection(wiki.ExtractSection(entry.Body, "## Tech Stack"), 500)
-			_ = techStack // may be empty, that's fine
+	if indexPath := findProjectIndex(dirPath); indexPath != "" {
+		if data, err := os.ReadFile(indexPath); err == nil {
+			if entry, err := wiki.ParseMultiProjectEntry(data); err == nil {
+				domain = wiki.TruncateSection(wiki.ExtractSection(entry.Body, "## Domain"), 500)
+				arch = wiki.TruncateSection(wiki.ExtractSection(entry.Body, "## Architecture"), 500)
+				integrations = wiki.TruncateSection(wiki.ExtractSection(entry.Body, "## Integrations"), 500)
+				techStack = wiki.TruncateSection(wiki.ExtractSection(entry.Body, "## Tech Stack"), 500)
+				_ = techStack // may be empty, that's fine
+			}
 		}
 	}
 	// Aggregate tags from all services
@@ -149,4 +152,30 @@ func readMultiServiceSummary(dirPath, name string) (ProjectSummary, error) {
 		Integrations:   integrations,
 		TechStack:      techStack,
 	}, nil
+}
+
+// findProjectIndex returns the absolute path of the project-level index in
+// dirPath, preferring a v1.1.1-style "{prefix}_index.md" over the legacy
+// "_index.md". Returns "" when neither exists. This lets summary readers
+// work across mixed-era wiki trees during migration.
+func findProjectIndex(dirPath string) string {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return ""
+	}
+	var legacy string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if name == wiki.LegacyIndexFileName {
+			legacy = filepath.Join(dirPath, name)
+			continue
+		}
+		if wiki.IsIndexFileName(name) {
+			return filepath.Join(dirPath, name)
+		}
+	}
+	return legacy
 }

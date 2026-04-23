@@ -28,7 +28,7 @@ func DiscoverLinkTargets(wikiRoot string) ([]LinkTarget, error) {
 		targets = append(targets, LinkTarget{Name: e.Name, WikiPath: e.WikiPath})
 	}
 
-	// Walk for service files (not _index.md, not the root _index.md)
+	// Walk for service files (not index files, not the root index)
 	err = filepath.WalkDir(wikiRoot, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil
@@ -36,12 +36,13 @@ func DiscoverLinkTargets(wikiRoot string) ([]LinkTarget, error) {
 		if !strings.HasSuffix(path, ".md") {
 			return nil
 		}
-		// Skip root _index.md (structured index, not prose)
-		if path == filepath.Join(wikiRoot, "_index.md") {
+		// Skip root index file (structured index, not prose)
+		if path == filepath.Join(wikiRoot, LegacyIndexFileName) {
 			return nil
 		}
-		// Skip client/project _index.md for link target discovery (they link TO others, not FROM)
-		if d.Name() == "_index.md" {
+		// Skip any client/project index file (new or legacy name) — indexes
+		// link TO other files, not FROM.
+		if IsIndexFileName(d.Name()) {
 			return nil
 		}
 		rel, _ := filepath.Rel(wikiRoot, path)
@@ -73,8 +74,13 @@ func LinkWikiFiles(wikiRoot string) error {
 		if !strings.HasSuffix(path, ".md") {
 			return nil
 		}
-		// Skip root _index.md (structured index, not prose)
-		if path == filepath.Join(wikiRoot, "_index.md") {
+		// Skip root index file (structured index, not prose). Also skip the
+		// new-style client/project index files so we don't rewrite them to
+		// add self-links — indexes are generated output.
+		if path == filepath.Join(wikiRoot, LegacyIndexFileName) {
+			return nil
+		}
+		if IsIndexFileName(d.Name()) {
 			return nil
 		}
 		data, readErr := safeio.ReadRegularFile(path)

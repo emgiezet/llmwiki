@@ -90,11 +90,16 @@ func buildContextOutput(wikiRoot, projectName, service string, mem *memory.Store
 		return "", fmt.Errorf("service %q not found in wiki for project %q", service, projectName)
 	}
 
+	// The second pattern uses *_index.md so we match both the v1.1.1+
+	// "{customer}_{project}_index.md" and the legacy "_index.md" in the
+	// project directory.
 	patterns := []string{
 		filepath.Join(wikiRoot, "clients", "*", projectName+".md"),
-		filepath.Join(wikiRoot, "clients", "*", projectName, "_index.md"),
+		filepath.Join(wikiRoot, "clients", "*", projectName, "*_index.md"),
 		filepath.Join(wikiRoot, "personal", projectName+".md"),
+		filepath.Join(wikiRoot, "personal", projectName, "*_index.md"),
 		filepath.Join(wikiRoot, "opensource", projectName+".md"),
+		filepath.Join(wikiRoot, "opensource", projectName, "*_index.md"),
 	}
 	for _, pattern := range patterns {
 		matches, _ := filepath.Glob(pattern)

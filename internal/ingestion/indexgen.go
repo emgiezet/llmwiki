@@ -12,7 +12,10 @@ import (
 	"github.com/emgiezet/llmwiki/internal/wiki"
 )
 
-// GenerateMultiProjectIndex generates a project-level _index.md for multi-service projects.
+// GenerateMultiProjectIndex generates a project-level index for multi-service
+// projects. The filename follows the {customer}_{project}_index.md convention
+// (see wiki.IndexFileName); any legacy _index.md in the same directory is
+// removed after the new file is written so repeat-ingests migrate automatically.
 func GenerateMultiProjectIndex(ctx context.Context, wikiRoot, projectType, customer, projectName string, l llm.LLM) error {
 	projectDir := filepath.Join(wikiRoot, TypeToDir(projectType), customer, projectName)
 	services, err := ReadServiceSummaries(projectDir)
@@ -36,8 +39,13 @@ func GenerateMultiProjectIndex(ctx context.Context, wikiRoot, projectType, custo
 		sb.WriteString("\n")
 	}
 
-	indexPath := filepath.Join(projectDir, "_index.md")
+	indexPath := filepath.Join(projectDir, wiki.IndexFileName(customer, projectName))
+	// Try loading existing body from either the new-named file OR a legacy
+	// _index.md so migration preserves the human-edited body.
 	existing := loadExistingMultiProjectBody(indexPath)
+	if existing == "" {
+		existing = loadExistingMultiProjectBody(filepath.Join(projectDir, wiki.LegacyIndexFileName))
+	}
 
 	prompt := BuildMultiProjectIndexPrompt(projectName, sb.String(), existing)
 	body, err := l.Generate(ctx, prompt)
@@ -63,7 +71,11 @@ func GenerateMultiProjectIndex(ctx context.Context, wikiRoot, projectType, custo
 		Tags:          tags,
 		LastGenerated: time.Now().UTC(),
 	}
-	return wiki.WriteMultiProjectEntry(indexPath, meta, "\n"+body+"\n")
+	if err := wiki.WriteMultiProjectEntry(indexPath, meta, "\n"+body+"\n"); err != nil {
+		return err
+	}
+	migrateLegacyIndex(projectDir, indexPath)
+	return nil
 }
 
 // GenerateClientIndex generates a client-level _index.md from all project wiki files.
@@ -102,8 +114,11 @@ func GenerateClientIndex(ctx context.Context, wikiRoot, customer string, l llm.L
 		sb.WriteString("\n")
 	}
 
-	indexPath := filepath.Join(wikiRoot, "clients", customer, "_index.md")
+	indexPath := filepath.Join(wikiRoot, "clients", customer, wiki.IndexFileName(customer))
 	existing := loadExistingClientBody(indexPath)
+	if existing == "" {
+		existing = loadExistingClientBody(filepath.Join(wikiRoot, "clients", customer, wiki.LegacyIndexFileName))
+	}
 
 	prompt := BuildClientIndexPrompt(customer, sb.String())
 	if existing != "" {
@@ -130,7 +145,27 @@ func GenerateClientIndex(ctx context.Context, wikiRoot, customer string, l llm.L
 		Tags:          tags,
 		LastGenerated: time.Now().UTC(),
 	}
-	return wiki.WriteClientEntry(indexPath, meta, "\n"+body+"\n")
+	if err := wiki.WriteClientEntry(indexPath, meta, "\n"+body+"\n"); err != nil {
+		return err
+	}
+	migrateLegacyIndex(filepath.Dir(indexPath), indexPath)
+	return nil
+}
+
+// migrateLegacyIndex removes a pre-v1.1.1 `_index.md` sitting next to a
+// freshly-written client-prefixed index, so users don't end up with two
+// copies of the same index after an ingest. No-op if the legacy name is
+// the same as the new name (top-level wiki/_index.md) or if no legacy
+// file is present.
+func migrateLegacyIndex(dir, newIndexPath string) {
+	legacy := filepath.Join(dir, wiki.LegacyIndexFileName)
+	if legacy == newIndexPath {
+		return
+	}
+	if _, err := os.Stat(legacy); err != nil {
+		return
+	}
+	_ = os.Remove(legacy)
 }
 
 func loadExistingMultiProjectBody(path string) string {

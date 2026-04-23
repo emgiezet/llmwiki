@@ -1,6 +1,7 @@
 package scanner_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,95 @@ func TestScanProject_CollectsREADME(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "README.md")
 	assert.Contains(t, result.Summary, "# My Project")
+}
+
+// v1.3.0 — discovery doc pickup.
+
+func TestScanProject_CollectsRootPRD(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "PRD.md"),
+		[]byte("# Billing API PRD\n## Goals\nReduce manual invoice work."), 0644))
+
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+	assert.Contains(t, result.Summary, "PRD.md")
+	assert.Contains(t, result.Summary, "Reduce manual invoice work.")
+}
+
+func TestScanProject_CollectsDocsDirFiles(t *testing.T) {
+	dir := t.TempDir()
+	docsDir := filepath.Join(dir, "docs")
+	require.NoError(t, os.MkdirAll(docsDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "design.md"),
+		[]byte("## Architecture\nHex + ports & adapters."), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "adr-001.md"),
+		[]byte("## ADR 1\nChose Postgres over MongoDB."), 0644))
+
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+	assert.Contains(t, result.Summary, "docs/design.md")
+	assert.Contains(t, result.Summary, "Hex + ports & adapters.")
+	assert.Contains(t, result.Summary, "docs/adr-001.md")
+	assert.Contains(t, result.Summary, "Chose Postgres over MongoDB.")
+}
+
+func TestScanProject_CollectsNotesDirFiles(t *testing.T) {
+	dir := t.TempDir()
+	notesDir := filepath.Join(dir, "notes")
+	require.NoError(t, os.MkdirAll(notesDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(notesDir, "kickoff.md"),
+		[]byte("# Kickoff\n- Q1 stakeholders sign-off"), 0644))
+
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+	assert.Contains(t, result.Summary, "notes/kickoff.md")
+	assert.Contains(t, result.Summary, "stakeholders sign-off")
+}
+
+func TestScanProject_CapsDocsDirAt20Files(t *testing.T) {
+	dir := t.TempDir()
+	docsDir := filepath.Join(dir, "docs")
+	require.NoError(t, os.MkdirAll(docsDir, 0755))
+	// Create 25 files — 5 should be omitted.
+	for i := 0; i < 25; i++ {
+		name := filepath.Join(docsDir, "doc-"+fmt.Sprintf("%02d", i)+".md")
+		require.NoError(t, os.WriteFile(name, []byte("content"), 0644))
+	}
+
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+	// Exactly 20 "=== docs/..." headers should appear.
+	count := strings.Count(result.Summary, "=== docs/")
+	assert.Equal(t, 20, count, "expected 20 docs/ files captured, got %d", count)
+	assert.Contains(t, result.Summary, "additional files omitted", "should mention omitted files")
+}
+
+func TestScanProject_TruncatesLargeDocsFile(t *testing.T) {
+	dir := t.TempDir()
+	docsDir := filepath.Join(dir, "docs")
+	require.NoError(t, os.MkdirAll(docsDir, 0755))
+
+	// 60 KB of content; scanner should trim to 50 KB + "[truncated]" marker.
+	big := strings.Repeat("x", 60_000)
+	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "huge.md"), []byte(big), 0644))
+
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+	assert.Contains(t, result.Summary, "[truncated]",
+		"a 60 KB docs file should trigger the truncation marker")
+}
+
+func TestScanProject_NoDocsDirIsHarmless(t *testing.T) {
+	// Regression guard: a repo with only code (no docs/, no notes/, no
+	// PRD.md) scans exactly as it did pre-v1.3.0.
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"),
+		[]byte("module example.com/foo\n"), 0644))
+
+	result, err := scanner.ScanProject(dir)
+	require.NoError(t, err)
+	assert.NotContains(t, result.Summary, "omitted")
+	assert.Contains(t, result.Summary, "go.mod")
 }
 
 func TestScanProject_CollectsGoMod(t *testing.T) {

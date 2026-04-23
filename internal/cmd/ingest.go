@@ -119,7 +119,7 @@ func NewIngestCmd() *cobra.Command {
 					recalled, _ = mem.RecallForProject(cmd.Context(), projectName, cfg.Customer)
 				}
 
-				serviceSections, err := ingestion.ResolveSections(cfg.Extraction, ingestion.ScopeService)
+				serviceSections, err := ingestion.ResolveSections(cfg.Extraction, cfg.Status, ingestion.ScopeService)
 				if err != nil {
 					return fmt.Errorf("resolve service sections: %w", err)
 				}

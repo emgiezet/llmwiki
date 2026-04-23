@@ -19,11 +19,11 @@ import (
 func IngestProject(ctx context.Context, projectDir, projectName string, cfg config.Merged, l llm.LLM, mem *memory.Store) error {
 	// Resolve extraction sections up front so a bad preset/section ID fails the
 	// run before we touch the scanner or the LLM.
-	projectSections, err := ResolveSections(cfg.Extraction, ScopeProject)
+	projectSections, err := ResolveSections(cfg.Extraction, cfg.Status, ScopeProject)
 	if err != nil {
 		return fmt.Errorf("resolve project sections: %w", err)
 	}
-	serviceSections, err := ResolveSections(cfg.Extraction, ScopeService)
+	serviceSections, err := ResolveSections(cfg.Extraction, cfg.Status, ScopeService)
 	if err != nil {
 		return fmt.Errorf("resolve service sections: %w", err)
 	}

@@ -11,7 +11,7 @@ import (
 )
 
 func TestResolveSections_DefaultPresetProjectScope(t *testing.T) {
-	got, err := ingestion.ResolveSections(config.ExtractionConfig{}, ingestion.ScopeProject)
+	got, err := ingestion.ResolveSections(config.ExtractionConfig{}, "", ingestion.ScopeProject)
 	require.NoError(t, err)
 
 	ids := sectionIDs(got)
@@ -36,7 +36,7 @@ func TestResolveSections_DefaultPresetProjectScope(t *testing.T) {
 }
 
 func TestResolveSections_DefaultPresetServiceScope(t *testing.T) {
-	got, err := ingestion.ResolveSections(config.ExtractionConfig{}, ingestion.ScopeService)
+	got, err := ingestion.ResolveSections(config.ExtractionConfig{}, "", ingestion.ScopeService)
 	require.NoError(t, err)
 
 	ids := sectionIDs(got)
@@ -54,21 +54,21 @@ func TestResolveSections_ExplicitListOverridesPreset(t *testing.T) {
 	got, err := ingestion.ResolveSections(config.ExtractionConfig{
 		Preset:   "software",
 		Sections: []string{"domain", "tags"},
-	}, ingestion.ScopeProject)
+	}, "", ingestion.ScopeProject)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"domain", "tags"}, sectionIDs(got))
 }
 
 func TestResolveSections_Minimal(t *testing.T) {
-	got, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "minimal"}, ingestion.ScopeProject)
+	got, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "minimal"}, "", ingestion.ScopeProject)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"domain", "architecture", "features", "tags"}, sectionIDs(got))
 }
 
 func TestResolveSections_Software(t *testing.T) {
-	got, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "software"}, ingestion.ScopeProject)
+	got, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "software"}, "", ingestion.ScopeProject)
 	require.NoError(t, err)
 
 	ids := sectionIDs(got)
@@ -82,7 +82,7 @@ func TestResolveSections_Software(t *testing.T) {
 }
 
 func TestResolveSections_Feature(t *testing.T) {
-	got, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "feature"}, ingestion.ScopeProject)
+	got, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "feature"}, "", ingestion.ScopeProject)
 	require.NoError(t, err)
 
 	ids := sectionIDs(got)
@@ -93,7 +93,7 @@ func TestResolveSections_Feature(t *testing.T) {
 }
 
 func TestResolveSections_UnknownPreset(t *testing.T) {
-	_, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "typo"}, ingestion.ScopeProject)
+	_, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "typo"}, "", ingestion.ScopeProject)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown preset")
 	assert.Contains(t, err.Error(), "typo")
@@ -102,7 +102,7 @@ func TestResolveSections_UnknownPreset(t *testing.T) {
 func TestResolveSections_UnknownSectionID(t *testing.T) {
 	_, err := ingestion.ResolveSections(config.ExtractionConfig{
 		Sections: []string{"domain", "nope"},
-	}, ingestion.ScopeProject)
+	}, "", ingestion.ScopeProject)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown section")
 	assert.Contains(t, err.Error(), "nope")
@@ -113,7 +113,7 @@ func TestResolveSections_EmptyAfterScopeFilterErrors(t *testing.T) {
 	// rather than silently returning an empty slice.
 	_, err := ingestion.ResolveSections(config.ExtractionConfig{
 		Sections: []string{"api_surface"},
-	}, ingestion.ScopeProject)
+	}, "", ingestion.ScopeProject)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no sections resolved")
 }
@@ -121,13 +121,13 @@ func TestResolveSections_EmptyAfterScopeFilterErrors(t *testing.T) {
 func TestResolveSections_DeduplicatesExplicitList(t *testing.T) {
 	got, err := ingestion.ResolveSections(config.ExtractionConfig{
 		Sections: []string{"domain", "tags", "domain"},
-	}, ingestion.ScopeProject)
+	}, "", ingestion.ScopeProject)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"domain", "tags"}, sectionIDs(got))
 }
 
 func TestResolveSections_FullPresetIncludesAll(t *testing.T) {
-	got, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "full"}, ingestion.ScopeProject)
+	got, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "full"}, "", ingestion.ScopeProject)
 	require.NoError(t, err)
 
 	ids := sectionIDs(got)
@@ -157,4 +157,67 @@ func sectionIDs(sections []ingestion.Section) []string {
 		ids[i] = s.ID
 	}
 	return ids
+}
+
+// --- v1.3.0 status-driven preset tests ---
+
+func TestResolveSections_StatusDrivesDefaultPreset(t *testing.T) {
+	got, err := ingestion.ResolveSections(config.ExtractionConfig{}, config.StatusDiscovery, ingestion.ScopeProject)
+	require.NoError(t, err)
+	ids := sectionIDs(got)
+	assert.Contains(t, ids, "open_questions")
+	assert.Contains(t, ids, "requirements")
+	assert.Contains(t, ids, "scope")
+	assert.NotContains(t, ids, "services", "discovery preset should not include Services")
+	assert.NotContains(t, ids, "architecture", "discovery preset is intent-heavy, not architecture-heavy")
+}
+
+func TestResolveSections_StatusPOC(t *testing.T) {
+	got, err := ingestion.ResolveSections(config.ExtractionConfig{}, config.StatusPOC, ingestion.ScopeProject)
+	require.NoError(t, err)
+	ids := sectionIDs(got)
+	assert.Contains(t, ids, "scope_assumptions")
+	assert.Contains(t, ids, "success_criteria")
+	assert.Contains(t, ids, "architecture", "POC keeps a lightweight architecture section")
+	assert.NotContains(t, ids, "services", "POC shouldn't have Services")
+	assert.NotContains(t, ids, "flows")
+}
+
+func TestResolveSections_StatusProduction(t *testing.T) {
+	got, err := ingestion.ResolveSections(config.ExtractionConfig{}, config.StatusProduction, ingestion.ScopeProject)
+	require.NoError(t, err)
+	ids := sectionIDs(got)
+	assert.Contains(t, ids, "architecture")
+	assert.Contains(t, ids, "services")
+	assert.Contains(t, ids, "bug_summary", "production preset should include the bug_summary slot")
+}
+
+func TestResolveSections_ExplicitPresetBeatsStatus(t *testing.T) {
+	got, err := ingestion.ResolveSections(
+		config.ExtractionConfig{Preset: "minimal"},
+		config.StatusDiscovery,
+		ingestion.ScopeProject,
+	)
+	require.NoError(t, err)
+	ids := sectionIDs(got)
+	assert.NotContains(t, ids, "open_questions", "explicit preset=minimal overrides discovery status")
+	assert.Contains(t, ids, "architecture")
+}
+
+func TestResolveSections_ExplicitSectionsBeatStatus(t *testing.T) {
+	got, err := ingestion.ResolveSections(
+		config.ExtractionConfig{Sections: []string{"domain", "tags"}},
+		config.StatusDiscovery,
+		ingestion.ScopeProject,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"domain", "tags"}, sectionIDs(got))
+}
+
+func TestResolveSections_EmptyStatusFallsBackToDefault(t *testing.T) {
+	got, err := ingestion.ResolveSections(config.ExtractionConfig{}, "", ingestion.ScopeProject)
+	require.NoError(t, err)
+	ids := sectionIDs(got)
+	assert.Contains(t, ids, "services")
+	assert.NotContains(t, ids, "bug_summary", "'default' preset lacks bug_summary (that's in status-production)")
 }

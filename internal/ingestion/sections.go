@@ -119,6 +119,45 @@ var AllSections = []Section{
 		ID: "tags", Title: "Tags", Scope: ScopeBoth, Category: "core",
 		Instruction: "Comma-separated list of technology and architectural pattern tags. Include: languages, frameworks, infrastructure, protocols, and patterns like event-driven, microservices, monolith. Example: go, gin, grpc, kubernetes, rabbitmq, event-driven. Output ONLY the comma-separated list, no bullets or explanation.",
 	},
+
+	// v1.3.0 discovery-oriented sections — used when status: discovery.
+	{
+		ID: "open_questions", Title: "Open Questions", Scope: ScopeProject, Category: "discovery",
+		Instruction: "List the unresolved questions about scope, requirements, constraints, users, or integrations that need answers before build can start. If a PRD/requirements.md is present in the scan, extract questions flagged as TBD / TODO / unclear. One bullet per question, prefixed with a short topic tag. Err on the side of listing too many — it's better to surface ambiguity than hide it.",
+	},
+	{
+		ID: "requirements", Title: "Requirements", Scope: ScopeProject, Category: "discovery",
+		Instruction: "Structured summary of functional and non-functional requirements extracted from the PRD, requirements doc, meeting notes, or README. Split into subsections: **Functional** (what the system does), **Non-functional** (performance, security, compliance, availability), **Constraints** (budget, timeline, technology choices already made). Cite the source doc when quoting a specific requirement.",
+	},
+	{
+		ID: "scope", Title: "Scope", Scope: ScopeProject, Category: "discovery",
+		Instruction: "What is IN and what is OUT of this project's scope. Two explicit lists: **In scope** and **Out of scope**. Pull from explicit scope statements in the PRD; for unstated items, mark them as \"Assumed in scope\" or \"Assumed out of scope\" so the user can correct.",
+	},
+	{
+		ID: "assumptions", Title: "Assumptions", Scope: ScopeProject, Category: "discovery",
+		Instruction: "Things the team is taking as given without formal validation. These are risks in disguise — each assumption should be one line with a short note on what breaks if the assumption turns out to be wrong.",
+	},
+	{
+		ID: "stakeholders", Title: "Stakeholders", Scope: ScopeProject, Category: "discovery",
+		Instruction: "Who is involved and why. Include: sponsor / decision-maker, end users, upstream systems' owners, downstream consumers' owners, compliance/security contacts. For each, name + role + what they expect from this project. Extract from project docs or README.",
+	},
+
+	// v1.3.0 POC-oriented sections — used when status: poc.
+	{
+		ID: "scope_assumptions", Title: "Scope & Assumptions", Scope: ScopeProject, Category: "poc",
+		Instruction: "Compact summary of what this POC aims to prove, what's explicitly out of scope, and the assumptions baked in. Two short subsections: **What the POC tests** (the hypothesis) and **Explicit non-goals** (things deliberately deferred).",
+	},
+	{
+		ID: "success_criteria", Title: "Success Criteria", Scope: ScopeProject, Category: "poc",
+		Instruction: "The concrete, measurable outcomes that determine whether the POC succeeded. Each criterion should be binary (met / not met) and tied to something testable. If quantitative thresholds exist in the PRD or tickets, extract them verbatim.",
+	},
+
+	// v1.3.0 production-oriented placeholder — populated in v1.4.0 by a
+	// bug-summary extractor (git log + optional MCP issue tracker).
+	{
+		ID: "bug_summary", Title: "Recent Bugs", Scope: ScopeProject, Category: "production",
+		Instruction: "Summary of the last three months of bug fixes. For each notable bug: what broke, how it surfaced, the fix, and any regression guard added. If this is an ingest-from-scratch run, note that the full history will populate once the project has been re-ingested after v1.4.0 ships the git-log extractor.",
+	},
 }
 
 // sectionByID indexes AllSections for O(1) lookup.
@@ -150,6 +189,39 @@ var Presets = map[string][]string{
 	},
 	"feature": {"domain", "features", "roadmap", "integrations", "notes", "tags"},
 	"full":    allIDs(),
+	// v1.3.0 status-driven presets. Used by ResolveSections when the project
+	// has status:<x> but no explicit preset / sections override.
+	"status-production": {
+		"domain", "architecture", "services", "features", "flows",
+		"system_diagram", "data_model_diagram", "integrations",
+		"tech_stack", "configuration", "notes", "tags",
+		"purpose", "api_surface", "data_model",
+		"bug_summary", // v1.4.0 fills this; until then, a scaffolded section
+	},
+	"status-discovery": {
+		"domain", "open_questions", "requirements", "scope",
+		"assumptions", "stakeholders", "integrations", "notes", "tags",
+	},
+	"status-poc": {
+		"domain", "scope_assumptions", "architecture",
+		"tech_stack", "success_criteria", "notes", "tags",
+	},
+}
+
+// StatusPresetName maps a ProjectStatus to the Presets key used as the
+// default section bundle when no explicit preset / sections list is set.
+// Returns empty string for unknown / empty status — the caller falls back
+// to Presets["default"] to preserve pre-v1.3.0 behaviour.
+func StatusPresetName(s config.ProjectStatus) string {
+	switch s {
+	case config.StatusProduction:
+		return "status-production"
+	case config.StatusDiscovery:
+		return "status-discovery"
+	case config.StatusPOC:
+		return "status-poc"
+	}
+	return ""
 }
 
 func allIDs() []string {
@@ -172,19 +244,17 @@ func PresetNames() []string {
 
 // ResolveSections picks the section list for a given prompt scope.
 //
-// Resolution rule:
-//  1. If cfg.Sections is non-empty, use it verbatim.
-//  2. Otherwise if cfg.Preset is non-empty, resolve it.
-//  3. Otherwise fall back to Presets["default"].
+// Resolution rule (first match wins):
+//  1. cfg.Sections non-empty → use verbatim
+//  2. cfg.Preset non-empty → resolve it
+//  3. status non-empty → use StatusPresetName(status) mapping
+//  4. fall back to Presets["default"] (= pre-v1.3.0 behaviour)
 //
 // Sections whose Scope does not include the requested scope are silently
-// filtered out — users configure extraction once and each prompt picks the
-// sections relevant to it.
-//
-// Returns an error for unknown section IDs or preset names (fail fast — do
-// not silently drop typos).
-func ResolveSections(cfg config.ExtractionConfig, scope Scope) ([]Section, error) {
-	ids, err := resolveIDs(cfg)
+// filtered out. Returns an error for unknown section IDs or preset names
+// (fail fast on typos).
+func ResolveSections(cfg config.ExtractionConfig, status config.ProjectStatus, scope Scope) ([]Section, error) {
+	ids, err := resolveIDs(cfg, status)
 	if err != nil {
 		return nil, err
 	}
@@ -210,11 +280,16 @@ func ResolveSections(cfg config.ExtractionConfig, scope Scope) ([]Section, error
 	return result, nil
 }
 
-func resolveIDs(cfg config.ExtractionConfig) ([]string, error) {
+func resolveIDs(cfg config.ExtractionConfig, status config.ProjectStatus) ([]string, error) {
 	if len(cfg.Sections) > 0 {
 		return cfg.Sections, nil
 	}
 	preset := cfg.Preset
+	if preset == "" {
+		// v1.3.0: status drives the default preset when the user hasn't
+		// explicitly picked one.
+		preset = StatusPresetName(status)
+	}
 	if preset == "" {
 		preset = "default"
 	}

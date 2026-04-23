@@ -13,14 +13,14 @@ import (
 // project prompts — used as a baseline across tests.
 func defaultProjectSections(t *testing.T) []ingestion.Section {
 	t.Helper()
-	s, err := ingestion.ResolveSections(config.ExtractionConfig{}, ingestion.ScopeProject)
+	s, err := ingestion.ResolveSections(config.ExtractionConfig{}, "", ingestion.ScopeProject)
 	require.NoError(t, err)
 	return s
 }
 
 func defaultServiceSections(t *testing.T) []ingestion.Section {
 	t.Helper()
-	s, err := ingestion.ResolveSections(config.ExtractionConfig{}, ingestion.ScopeService)
+	s, err := ingestion.ResolveSections(config.ExtractionConfig{}, "", ingestion.ScopeService)
 	require.NoError(t, err)
 	return s
 }
@@ -71,7 +71,7 @@ func TestBuildServicePrompt_IncludesScan(t *testing.T) {
 }
 
 func TestBuildProjectPrompt_MinimalPresetOmitsSections(t *testing.T) {
-	sections, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "minimal"}, ingestion.ScopeProject)
+	sections, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "minimal"}, "", ingestion.ScopeProject)
 	require.NoError(t, err)
 	prompt := ingestion.BuildProjectPrompt("p", "scan", "", "", sections, 0)
 
@@ -87,7 +87,7 @@ func TestBuildProjectPrompt_MinimalPresetOmitsSections(t *testing.T) {
 }
 
 func TestBuildProjectPrompt_SoftwarePresetIncludesSoftwareSections(t *testing.T) {
-	sections, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "software"}, ingestion.ScopeProject)
+	sections, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "software"}, "", ingestion.ScopeProject)
 	require.NoError(t, err)
 	prompt := ingestion.BuildProjectPrompt("p", "scan", "", "", sections, 0)
 
@@ -103,7 +103,7 @@ func TestBuildProjectPrompt_SoftwarePresetIncludesSoftwareSections(t *testing.T)
 }
 
 func TestBuildProjectPrompt_FeaturePresetIncludesRoadmap(t *testing.T) {
-	sections, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "feature"}, ingestion.ScopeProject)
+	sections, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "feature"}, "", ingestion.ScopeProject)
 	require.NoError(t, err)
 	prompt := ingestion.BuildProjectPrompt("p", "scan", "", "", sections, 0)
 
@@ -125,7 +125,7 @@ func TestBuildProjectPrompt_MaxTokensAddsWordBudgetHint(t *testing.T) {
 func TestBuildProjectPrompt_ExplicitSectionsRespectsOrder(t *testing.T) {
 	sections, err := ingestion.ResolveSections(config.ExtractionConfig{
 		Sections: []string{"tags", "domain", "architecture"},
-	}, ingestion.ScopeProject)
+	}, "", ingestion.ScopeProject)
 	require.NoError(t, err)
 	prompt := ingestion.BuildProjectPrompt("p", "scan", "", "", sections, 0)
 

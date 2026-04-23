@@ -95,7 +95,7 @@ func RenderLinks(links []LinkEntry) string {
 	for _, e := range sorted {
 		label := wellKnownLinkLabels[e.Key]
 		if label == "" {
-			label = strings.Title(e.Key) //nolint:staticcheck // Title is fine for ASCII keys
+			label = titleASCII(e.Key)
 		}
 		line := fmt.Sprintf("- [%s](%s)", label, e.URL)
 		if e.FromClient {
@@ -271,4 +271,30 @@ func formatUSD(v float64) string {
 func formatFloat(v float64) string {
 	s := fmt.Sprintf("%g", v)
 	return s
+}
+
+// titleASCII capitalises the first letter of each word (split on '-' and '_')
+// for unknown link keys. Avoids strings.Title (deprecated) since our keys are
+// all ASCII — no Unicode word-boundary concerns.
+func titleASCII(s string) string {
+	if s == "" {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	capNext := true
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '-' || c == '_' {
+			b.WriteByte(c)
+			capNext = true
+			continue
+		}
+		if capNext && c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		b.WriteByte(c)
+		capNext = false
+	}
+	return b.String()
 }

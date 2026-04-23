@@ -22,6 +22,7 @@ func NewIngestCmd() *cobra.Command {
 	var preset string
 	var sectionsFlag []string
 	var maxTokens int
+	var statusFlag string
 
 	cmd := &cobra.Command{
 		Use:   "ingest <path>",
@@ -63,6 +64,13 @@ func NewIngestCmd() *cobra.Command {
 			}
 			if cmd.Flags().Changed("max-tokens") {
 				cfg.Extraction.MaxTokens = maxTokens
+			}
+			if cmd.Flags().Changed("status") {
+				s := config.ProjectStatus(statusFlag)
+				if err := config.ValidateStatus(s); err != nil {
+					return fmt.Errorf("--status: %w", err)
+				}
+				cfg.Status = s
 			}
 
 			// API key can also come from env
@@ -164,5 +172,6 @@ func NewIngestCmd() *cobra.Command {
 	cmd.Flags().StringVar(&preset, "preset", "", "Extraction preset (default|minimal|software|feature|full) — overrides llmwiki.yaml")
 	cmd.Flags().StringSliceVar(&sectionsFlag, "sections", nil, "Comma-separated section IDs to extract — overrides llmwiki.yaml and --preset")
 	cmd.Flags().IntVar(&maxTokens, "max-tokens", 0, "Cap LLM output tokens per call (0 = backend default)")
+	cmd.Flags().StringVar(&statusFlag, "status", "", "Project lifecycle status (production|poc|discovery) — overrides llmwiki.yaml")
 	return cmd
 }

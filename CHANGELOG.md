@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0](https://github.com/emgiezet/llmwiki/compare/v1.0.0...v2.0.0) (2026-04-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **hook:** the Claude Code Stop hook is now Node.js instead of Python. Existing 1.0.x installs auto-migrate on `llmwiki hook install claude-code` (the legacy stop-hook.py is removed and hooks.json is rewritten to invoke `node` instead of `python3`), but node ≥ 18 must be on PATH.
+
+### Features
+
+* **hook:** per-tool hook dispatcher with native integrations, Node-migrated Claude Code hook ([9ba752a](https://github.com/emgiezet/llmwiki/commit/9ba752a0c970433f5e84aa06675bba0ebd0ff974))
+* **llm:** add gemini-cli, codex, opencode, pi as LLM backends ([68cbd40](https://github.com/emgiezet/llmwiki/commit/68cbd4090ad92c11a94447a119c21d97619bea98))
+* v1.1.0 — support opencode, codex, gemini-cli, pi + Node-migrated Claude Code hook ([19cdf06](https://github.com/emgiezet/llmwiki/commit/19cdf06c3b73b6871ebf219ab1d815473edaf373))
+
 ## 1.0.0 (2026-04-22)
 
 

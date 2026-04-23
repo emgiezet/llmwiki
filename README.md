@@ -311,7 +311,7 @@ The wiki directory works as an [Obsidian](https://obsidian.md/) vault out of the
 ```yaml
 type: client         # client | personal | oss
 customer: acme
-llm: ollama          # claude-code | claude-api | ollama
+llm: codex           # claude-code | claude-api | ollama | gemini-cli | codex | opencode | pi
 ollama_model: llama3.2
 ```
 
@@ -324,6 +324,13 @@ ollama_host: http://localhost:11434
 anthropic_api_key: ""   # or set ANTHROPIC_API_KEY env var
 memory_enabled: false   # enable graymatter persistent memory
 memory_dir: ~/.llmwiki/memory   # where gray.db lives
+
+# Optional PATH overrides for agentic-coder CLIs (empty = look up by name):
+claude_binary_path: ""
+gemini_binary_path: ""
+codex_binary_path: ""
+opencode_binary_path: ""
+pi_binary_path: ""
 ```
 
 Per-project config overrides global. If neither exists, defaults to `claude-code` with wiki at `~/llmwiki/wiki/`.
@@ -340,53 +347,65 @@ llmwiki remember --project my-api "uses custom auth middleware in pkg/auth, not 
 llmwiki recall "which projects use gRPC?"
 ```
 
-## Automatic Session Capture (Claude Code Hook)
+## Supported AI coding tools
 
-Every time Claude reads your code and explains how something works, that understanding exists only in the conversation — it vanishes when the session ends. The Claude Code hook captures it automatically.
+llmwiki supports seven LLM backends and five hook-based session-capture integrations:
 
-### How it works
+| Tool         | Backend (`llm:` value) | Hook install         | Capture mechanism                                      |
+|--------------|------------------------|----------------------|--------------------------------------------------------|
+| Claude Code  | `claude-code` (default) | ✅ native             | Plugin at `~/.claude/plugins/llmwiki/` (Node hook)      |
+| Claude API   | `claude-api`           | —                    | SDK-only, no session concept                           |
+| Ollama       | `ollama`               | —                    | REST, no session concept                               |
+| codex        | `codex`                | ✅ native `notify` TOML | `~/.codex/config.toml` → `notify = ["node", …]`         |
+| opencode     | `opencode`             | ✅ native plugin       | `~/.config/opencode/plugins/llmwiki.ts` (`session.idle`) |
+| pi           | `pi`                   | ✅ native extension    | `~/.pi/agent/extensions/llmwiki.ts` (`agent_end`)       |
+| gemini-cli   | `gemini-cli`           | ⚠ wrapper fallback   | Shell function in `~/.bashrc` / `.zshrc` / fish config  |
 
-llmwiki ships as a Claude Code plugin. After installation, a Stop hook fires at the end of every qualifying turn (assistant response >300 chars with at least one file-reading tool call). It reads the session transcript, extracts the last analytical response, and pipes it to `llmwiki absorb` — storing the insight in graymatter memory with zero user action.
+Hook-based capture is optional — all seven can be used as a plain ingest backend without any hook setup.
 
-Later, regenerate or update the wiki without re-scanning the codebase:
+### Hook install / uninstall / status
 
 ```bash
-llmwiki materialize my-project   # ~5-15K tokens vs 50-100K for full ingest
-```
+# Install for one tool
+llmwiki hook install claude-code
+llmwiki hook install codex
+llmwiki hook install opencode
+llmwiki hook install pi
+llmwiki hook install gemini-cli     # shell-wrapper fallback; source your rc after
 
-### Install
+# Install for everything detected
+llmwiki hook install all
 
-```bash
-# Install the Claude Code plugin
-llmwiki hook install
+# Remove
+llmwiki hook uninstall claude-code  # or any tool name, or 'all'
 
-# Check it's active
+# See what's installed
 llmwiki hook status
-
-# Restart Claude Code — the plugin is auto-discovered
 ```
 
-The plugin is written to `~/.claude/plugins/llmwiki/`. Claude Code detects it on next launch.
+Each tool's install is idempotent. Uninstall preserves user-authored config (TOML keys outside our marker block, unrelated rc-file lines, etc.).
 
-To remove:
+### How the captures work
+
+- **Claude Code**: `Stop` hook fires after every qualifying turn (assistant response >300 chars with at least one analytical tool call). A Node script reads the transcript, extracts the last response, and pipes to `llmwiki absorb`.
+- **codex**: top-level `notify = ["node", "~/.llmwiki/hooks/codex-absorb.js"]` in `~/.codex/config.toml`. Codex appends a JSON payload (with `last-assistant-message`, `cwd`) as the final argv on every turn end; the wrapper unpacks it and forwards.
+- **opencode**: TS plugin subscribes to `session.idle`, grabs the last assistant message via `client.session.messages(...)`, pipes it through Bun's `$` shell helper to `llmwiki absorb`.
+- **pi**: TS extension calls `pi.on("agent_end", …)`, which fires once per user prompt after tools complete.
+- **gemini-cli**: no native hook API. The installer writes a shell function wrapper that intercepts `gemini -p "…"` invocations only (interactive TUI passes through unchanged); it tees stdout and pipes to `llmwiki absorb` on success.
+
+### Regenerating the wiki from captured facts
+
+After a few hook-captured sessions, you can refresh a wiki entry without re-scanning the whole codebase:
 
 ```bash
-llmwiki hook uninstall
-```
-
-### Manual install (if you have the repo)
-
-Symlink the bundled plugin directory instead of running the command:
-
-```bash
-ln -s /path/to/llmwiki/plugin ~/.claude/plugins/llmwiki
+llmwiki materialize my-project   # ~5–15K tokens vs 50–100K for full ingest
 ```
 
 ### Requirements
 
-- `memory_enabled: true` in `~/.llmwiki/config.yaml`
-- `llmwiki` in your `$PATH` (so the hook script can call it)
-- Python 3 (used by the hook script; standard on macOS and most Linux distros)
+- `memory_enabled: true` in `~/.llmwiki/config.yaml` (otherwise `absorb` is a no-op).
+- `llmwiki` on `$PATH` — every hook shells out to the binary.
+- **Node.js ≥ 18** for the Claude Code and codex hooks. You already have it if you use any of the new agents (all ship as npm packages); the installers fail fast with a clear message otherwise.
 
 ### Lock contention and the absorb queue
 

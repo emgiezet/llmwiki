@@ -27,6 +27,11 @@ type ClientConfig struct {
 	// Extraction inherits the same way — client-level presets + max_tokens
 	// apply by default; projects override per-field.
 	Extraction ExtractionConfig `yaml:"extraction,omitempty"`
+	// v1.3.0 richer metadata — client-wide defaults for every project.
+	Status ProjectStatus `yaml:"status,omitempty"`
+	Links  LinksConfig   `yaml:"links,omitempty"`
+	Team   TeamConfig    `yaml:"team,omitempty"`
+	Cost   CostConfig    `yaml:"cost,omitempty"`
 }
 
 // LoadClientConfig looks up the per-customer config file. Returns a
@@ -53,6 +58,15 @@ func LoadClientConfig(customer string) (ClientConfig, error) {
 	}
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return cfg, fmt.Errorf("parse client config for %q: %w", customer, err)
+	}
+	if err := ValidateStatus(cfg.Status); err != nil {
+		return cfg, fmt.Errorf("client config for %q: %w", customer, err)
+	}
+	if err := ValidateCost(cfg.Cost); err != nil {
+		return cfg, fmt.Errorf("client config for %q: %w", customer, err)
+	}
+	for _, w := range ValidateLinks(cfg.Links) {
+		fmt.Fprintf(os.Stderr, "warning: client config %q: %s\n", customer, w)
 	}
 	return cfg, nil
 }

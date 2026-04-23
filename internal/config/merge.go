@@ -50,7 +50,100 @@ func Merge(g GlobalConfig, c ClientConfig, p ProjectConfig) Merged {
 		m.LLM = p.LLM
 	}
 
+	// Status: scalar override, project > client. Global has no status.
+	if c.Status != "" {
+		m.Status = c.Status
+	}
+	if p.Status != "" {
+		m.Status = p.Status
+	}
+
+	// Links: key-by-key override. Client keys pass through; project keys
+	// override on collision. We track which keys came from the client so
+	// the wiki renderer can annotate them.
+	m.Links, m.Source.LinksFromClient = mergeLinks(c.Links, p.Links)
+
+	// Team: field-by-field override, track client provenance.
+	m.Team, m.Source.TeamLeadFromClient, m.Source.TeamOncallFromClient, m.Source.TeamEscFromClient, m.Source.TeamNotesFromClient = mergeTeam(c.Team, p.Team)
+
+	// Cost: field-by-field override, flag if any field came from client.
+	m.Cost, m.Source.CostFromClient = mergeCost(c.Cost, p.Cost)
+
 	return m
+}
+
+// mergeLinks key-by-key-overrides project's entries onto client's, and
+// returns a companion map flagging which keys in the result came from the
+// client (for the inherited-from-client annotation in the wiki).
+func mergeLinks(c, p LinksConfig) (LinksConfig, map[string]bool) {
+	if len(c) == 0 && len(p) == 0 {
+		return nil, nil
+	}
+	out := make(LinksConfig, len(c)+len(p))
+	inherited := make(map[string]bool, len(c))
+	for k, v := range c {
+		out[k] = v
+		inherited[k] = true
+	}
+	for k, v := range p {
+		out[k] = v
+		delete(inherited, k) // project override — no longer inherited
+	}
+	if len(inherited) == 0 {
+		inherited = nil
+	}
+	return out, inherited
+}
+
+// mergeTeam applies the non-empty-wins rule per field, returning per-field
+// flags for which fields came from the client baseline.
+func mergeTeam(c, p TeamConfig) (out TeamConfig, leadFromClient, oncallFromClient, escFromClient, notesFromClient bool) {
+	out = c
+	if p.Lead != "" {
+		out.Lead = p.Lead
+	} else if c.Lead != "" {
+		leadFromClient = true
+	}
+	if p.OncallChannel != "" {
+		out.OncallChannel = p.OncallChannel
+	} else if c.OncallChannel != "" {
+		oncallFromClient = true
+	}
+	if p.Escalation != "" {
+		out.Escalation = p.Escalation
+	} else if c.Escalation != "" {
+		escFromClient = true
+	}
+	if p.Notes != "" {
+		out.Notes = p.Notes
+	} else if c.Notes != "" {
+		notesFromClient = true
+	}
+	return out, leadFromClient, oncallFromClient, escFromClient, notesFromClient
+}
+
+// mergeCost applies the non-zero-wins rule per numeric field and non-empty-
+// wins for the notes string. fromClient is true when any field's merged
+// value came from client (so the rendered total shows the inherited flag).
+func mergeCost(c, p CostConfig) (out CostConfig, fromClient bool) {
+	out = p
+	if out.InfraMonthlyUSD == 0 && c.InfraMonthlyUSD != 0 {
+		out.InfraMonthlyUSD = c.InfraMonthlyUSD
+		fromClient = true
+	}
+	if out.TeamFTE == 0 && c.TeamFTE != 0 {
+		out.TeamFTE = c.TeamFTE
+		fromClient = true
+	}
+	if out.TeamFTERateMonthlyUSD == 0 && c.TeamFTERateMonthlyUSD != 0 {
+		out.TeamFTERateMonthlyUSD = c.TeamFTERateMonthlyUSD
+		fromClient = true
+	}
+	if out.Notes == "" && c.Notes != "" {
+		out.Notes = c.Notes
+		fromClient = true
+	}
+	return out, fromClient
 }
 
 // mergeExtraction resolves ExtractionConfig across the three layers,

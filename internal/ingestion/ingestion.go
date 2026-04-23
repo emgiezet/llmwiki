@@ -86,13 +86,15 @@ func ingestSingleService(ctx context.Context, projectDir, projectName string, cf
 		Name:         projectName,
 		Customer:     cfg.Customer,
 		Type:         cfg.Type,
-		Status:       "active",
+		Status:       statusString(cfg.Status),
 		Path:         projectDir,
 		LLM:          cfg.LLM,
 		OllamaModel:  cfg.OllamaModel,
 		Tags:         tags,
+		Links:        map[string]string(cfg.Links),
 		LastIngested: time.Now().UTC(),
 	}
+	body += renderMetadata(cfg)
 	if err := wiki.WriteProjectEntry(wikiPath, meta, "\n"+body+"\n"); err != nil {
 		return err
 	}
@@ -137,8 +139,10 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 			Customer:     cfg.Customer,
 			Path:         svc.Path,
 			Tags:         tags,
+			Links:        map[string]string(cfg.Links),
 			LastIngested: time.Now().UTC(),
 		}
+		body += renderMetadata(cfg)
 		if err := wiki.WriteServiceEntry(wikiPath, meta, "\n"+body+"\n"); err != nil {
 			return err
 		}
@@ -156,6 +160,50 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 		Status:   "active",
 		WikiPath: relPath,
 	})
+}
+
+// statusString resolves the ProjectStatus into the string stored in wiki
+// front matter. Empty status defaults to "production" — this preserves
+// the convention that "no status set" means "normal production project",
+// which matches pre-v1.3.0 behaviour where Status was always "active".
+func statusString(s config.ProjectStatus) string {
+	if s == "" {
+		return string(config.StatusProduction)
+	}
+	return string(s)
+}
+
+// renderMetadata translates the merged config's v1.3.0 metadata into the
+// wiki package's plain render types and returns the markdown for the
+// Links / Team / Cost sections. Empty blocks return "", so unused metadata
+// leaves no empty headers in the output.
+func renderMetadata(cfg config.Merged) string {
+	links := make([]wiki.LinkEntry, 0, len(cfg.Links))
+	for k, v := range cfg.Links {
+		links = append(links, wiki.LinkEntry{
+			Key:        k,
+			URL:        v,
+			FromClient: cfg.Source.LinksFromClient[k],
+		})
+	}
+	team := wiki.TeamData{
+		Lead:             cfg.Team.Lead,
+		LeadFromClient:   cfg.Source.TeamLeadFromClient,
+		OncallChannel:    cfg.Team.OncallChannel,
+		OncallFromClient: cfg.Source.TeamOncallFromClient,
+		Escalation:       cfg.Team.Escalation,
+		EscFromClient:    cfg.Source.TeamEscFromClient,
+		Notes:            cfg.Team.Notes,
+		NotesFromClient:  cfg.Source.TeamNotesFromClient,
+	}
+	cost := wiki.CostData{
+		InfraMonthlyUSD:       cfg.Cost.InfraMonthlyUSD,
+		TeamFTE:               cfg.Cost.TeamFTE,
+		TeamFTERateMonthlyUSD: cfg.Cost.TeamFTERateMonthlyUSD,
+		Notes:                 cfg.Cost.Notes,
+		FromClient:            cfg.Source.CostFromClient,
+	}
+	return wiki.RenderMetadataSections(links, team, cost)
 }
 
 // TypeToDir maps project type to wiki directory name.

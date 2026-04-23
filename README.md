@@ -306,13 +306,72 @@ The wiki directory works as an [Obsidian](https://obsidian.md/) vault out of the
 
 ## Configuration
 
-### Per-project: `llmwiki.yaml`
+llmwiki resolves effective config by merging three layers, with each later layer overriding the previous one **per field**:
+
+```
+global  →  client  →  project
+```
+
+### Per-project: `llmwiki.yaml` (at project root)
 
 ```yaml
-type: client         # client | personal | oss
+type: client                # client | personal | oss
 customer: acme
-llm: ollama          # claude-code | claude-api | ollama
+status: discovery           # production | poc | discovery — drives section visibility
+llm: ollama                 # overrides client default
 ollama_model: llama3.2
+
+# External systems for MCP-connected AI agents to crawl and for humans to click.
+# Any key is allowed; well-known ones (github/gitlab/jira/confluence/slack/…)
+# get nicer rendering. Project keys override client keys one at a time.
+links:
+  jira: https://acme.atlassian.net/jira/software/projects/BILL
+
+# Team template — optional; well-known scalar keys + free-form notes.
+team:
+  oncall_channel: "#bill-api-oncall"
+
+# Cost perspective — optional; drives a calculation table when the numbers
+# are there, otherwise renders a how-to-estimate framework in the wiki.
+cost:
+  infra_monthly_usd: 1200
+  team_fte: 2.5
+```
+
+### Per-client: `~/.llmwiki/clients/<customer>.yaml` (v1.3.0+)
+
+Baseline every project with `customer: <name>` inherits from. Projects override any field per-key. Scaffold with `llmwiki client init <customer>`.
+
+```yaml
+# Client baseline — every project under customer: acme inherits these.
+status: production
+llm: codex
+
+links:
+  github: https://github.com/acme
+  confluence: https://acme.atlassian.net/wiki/spaces/ACME
+  slack: https://acme.slack.com/archives/C01ACME
+
+team:
+  lead: "jane.doe@acme.com"
+  oncall_channel: "#acme-ops"
+  escalation: "ops-manager@acme.com"
+
+cost:
+  # Team rate flows down to every project unless the project sets its own.
+  team_fte_rate_usd_monthly: 18000
+  notes: "Fully loaded (salary + benefits + overhead)."
+
+# LLM / extraction defaults also inherit client-wide.
+extraction:
+  preset: software
+  max_tokens: 4000
+```
+
+Inspect the effective config for any project with:
+```bash
+llmwiki client show acme --project ~/workspace/billing-api
+llmwiki client list      # customers with a client config file
 ```
 
 ### Global: `~/.llmwiki/config.yaml`
@@ -326,7 +385,29 @@ memory_enabled: false   # enable graymatter persistent memory
 memory_dir: ~/.llmwiki/memory   # where gray.db lives
 ```
 
-Per-project config overrides global. If neither exists, defaults to `claude-code` with wiki at `~/llmwiki/wiki/`.
+Per-project config overrides client config overrides global. If none exist, defaults to `claude-code` with wiki at `~/llmwiki/wiki/`.
+
+### Project status & section presets
+
+`status:` picks the default section list when no explicit preset/sections override is set:
+
+| Status | Section shape |
+|---|---|
+| `production` (default) | Domain, Architecture, Services, Features, Flows, System/Data diagrams, Integrations, Tech Stack, Configuration, Notes, Bug Summary *(v1.4.0)*, Tags |
+| `discovery` | Domain, **Open Questions**, **Requirements**, **Scope**, **Assumptions**, **Stakeholders**, Integrations, Notes, Tags |
+| `poc` | Domain, **Scope & Assumptions**, Architecture (light), Tech Stack, **Success Criteria**, Notes, Tags |
+
+Override per-run with `llmwiki ingest <path> --status discovery` or per-project via `status:` in `llmwiki.yaml`. Discovery projects automatically also get `docs/*.md`, `notes/*.md`, `PRD.md`, and `requirements.md` pulled into the scanner input.
+
+### Links, Team, Cost rendering
+
+Every wiki file rendered after v1.3.0 carries three optional body sections generated deterministically by llmwiki (not by the LLM — so the LLM can't hallucinate team members or cost figures):
+
+- **`## Links`** — clickable list with well-known keys (github/jira/confluence/slack/…) getting nice labels and icons. Inherited-from-client entries annotated `*(inherited from client)*`.
+- **`## Team`** — per-field markdown list with email addresses auto-linked as `mailto:` and `#channels` passed through verbatim.
+- **`## Cost`** — calculation table when numbers are set, or a how-to-estimate framework (the framework IS the doc — shows the exact YAML to fill in) when empty.
+
+Any of these sections is omitted entirely when the corresponding YAML block is empty, so unused metadata leaves no empty headers.
 
 ### Memory
 

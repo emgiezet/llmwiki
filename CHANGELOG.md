@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0](https://github.com/emgiezet/llmwiki/compare/v2.0.0...v2.1.0) (2026-04-23)
+
+
+### Features
+
+* **wiki:** prefix index files with client/project name ([28aabc4](https://github.com/emgiezet/llmwiki/commit/28aabc4a269fafbc071e492f98946819e6af1648))
+
 ## [2.0.0](https://github.com/emgiezet/llmwiki/compare/v1.0.0...v2.0.0) (2026-04-23)
 
 

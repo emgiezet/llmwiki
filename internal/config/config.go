@@ -23,6 +23,12 @@ type GlobalConfig struct {
 	// Useful when the Claude Code CLI is installed in a non-standard location or
 	// when PATH hijacking is a concern. Empty (default) = look up 'claude' via PATH.
 	ClaudeBinaryPath string `yaml:"claude_binary_path"`
+	// Optional PATH overrides for the agentic-coder CLIs added in v1.1.0.
+	// Empty = look up by basename.
+	GeminiBinaryPath   string `yaml:"gemini_binary_path"`
+	CodexBinaryPath    string `yaml:"codex_binary_path"`
+	OpencodeBinaryPath string `yaml:"opencode_binary_path"`
+	PiBinaryPath       string `yaml:"pi_binary_path"`
 }
 
 type ProjectConfig struct {
@@ -94,18 +100,22 @@ type ExtractionConfig struct {
 
 // Merged holds resolved config (global defaults + client baseline + project overrides)
 type Merged struct {
-	WikiRoot          string
-	LLM               string
-	OllamaHost        string
-	OllamaModel       string
-	AllowRemoteOllama bool
-	AnthropicAPIKey   string
-	Customer          string
-	Type              string
-	MemoryEnabled     bool
-	MemoryDir         string
-	ClaudeBinaryPath  string
-	Extraction        ExtractionConfig
+	WikiRoot           string
+	LLM                string
+	OllamaHost         string
+	OllamaModel        string
+	AllowRemoteOllama  bool
+	AnthropicAPIKey    string
+	Customer           string
+	Type               string
+	MemoryEnabled      bool
+	MemoryDir          string
+	ClaudeBinaryPath   string
+	GeminiBinaryPath   string
+	CodexBinaryPath    string
+	OpencodeBinaryPath string
+	PiBinaryPath       string
+	Extraction         ExtractionConfig
 	// v1.3.0 richer project metadata, three-way merged.
 	Status ProjectStatus
 	Links  LinksConfig

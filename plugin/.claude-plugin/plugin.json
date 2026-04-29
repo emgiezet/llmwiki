@@ -1,8 +1,0 @@
-{
-  "name": "llmwiki",
-  "description": "Captures analytical Claude Code sessions into graymatter memory via llmwiki absorb",
-  "author": {
-    "name": "Max Małecki"
-  },
-  "version": "1.0.0"
-}

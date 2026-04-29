@@ -22,13 +22,17 @@ func Merge(g GlobalConfig, c ClientConfig, p ProjectConfig) Merged {
 
 	m := Merged{
 		// Global-only fields.
-		WikiRoot:          g.WikiRoot,
-		OllamaHost:        g.OllamaHost,
-		AllowRemoteOllama: g.AllowRemoteOllama,
-		AnthropicAPIKey:   g.AnthropicAPIKey,
-		MemoryEnabled:     g.MemoryEnabled,
-		MemoryDir:         memDir,
-		ClaudeBinaryPath:  g.ClaudeBinaryPath,
+		WikiRoot:           g.WikiRoot,
+		OllamaHost:         g.OllamaHost,
+		AllowRemoteOllama:  g.AllowRemoteOllama,
+		AnthropicAPIKey:    g.AnthropicAPIKey,
+		MemoryEnabled:      g.MemoryEnabled,
+		MemoryDir:          memDir,
+		ClaudeBinaryPath:   g.ClaudeBinaryPath,
+		GeminiBinaryPath:   g.GeminiBinaryPath,
+		CodexBinaryPath:    g.CodexBinaryPath,
+		OpencodeBinaryPath: g.OpencodeBinaryPath,
+		PiBinaryPath:       g.PiBinaryPath,
 
 		// Project-only fields.
 		Customer:    p.Customer,

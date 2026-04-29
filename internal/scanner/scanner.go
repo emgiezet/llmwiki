@@ -54,6 +54,18 @@ var standardTargets = []fileTarget{
 	{".golangci.yml", 2000},
 	{".eslintrc*", 2000},
 	{"go.work", 2000},
+	// v1.3.0 discovery-doc pickup at repo root. The larger 50 KB budget
+	// matches docs/ + notes/ files so PRDs aren't clipped mid-requirement.
+	{"PRD.md", 50000},
+	{"prd.md", 50000},
+	{"Prd.md", 50000},
+	{"REQUIREMENTS.md", 50000},
+	{"requirements.md", 50000},
+	{"Requirements.md", 50000},
+	{"ROADMAP.md", 50000},
+	{"roadmap.md", 50000},
+	{"TODO.md", 50000},
+	{"todo.md", 50000},
 }
 
 // pathTargets match on relative path (not just filename).
@@ -122,6 +134,13 @@ func ScanProject(dir string) (ScanResult, error) {
 		return ScanResult{}, err
 	}
 
+	// v1.3.0: collect PRD / design / notes docs from docs/ and notes/ at
+	// depth 1. Helps discovery projects (sparse code, fat docs) and
+	// production projects that keep design docs alongside the code.
+	if docs := collectDiscoveryDocs(dir); docs != "" {
+		parts = append(parts, docs)
+	}
+
 	// Append directory tree for structural context
 	tree, _ := ScanDirectoryTree(dir, 3)
 	if tree != "" {
@@ -157,6 +176,65 @@ func matchPathTarget(relPath string) (bool, int) {
 		}
 	}
 	return false, 0
+}
+
+const (
+	// discoveryDocsMaxFiles caps how many docs/ + notes/ markdown files we
+	// collect in total, so a repo with a bloated docs directory can't blow
+	// up the prompt size.
+	discoveryDocsMaxFiles = 20
+	// discoveryDocMaxChars is the per-file truncation for discovery-docs.
+	// Aligned with the PRD/requirements root targets above at 50 KB so a
+	// design doc survives intact.
+	discoveryDocMaxChars = 50000
+)
+
+// collectDiscoveryDocs reads up to discoveryDocsMaxFiles markdown files
+// from docs/ and notes/ at depth 1 only. Each file is truncated at
+// discoveryDocMaxChars. Returns "" when neither directory exists.
+//
+// Depth-1 only is deliberate: deeper nesting would snowball into reading
+// an entire ADR archive or a generated API-reference tree. Users who want
+// more can symlink specific docs to the root (where higher-priority
+// targets pick them up) or keep their structure flat.
+func collectDiscoveryDocs(root string) string {
+	var parts []string
+	seen := 0
+
+	for _, sub := range []string{"docs", "notes"} {
+		if seen >= discoveryDocsMaxFiles {
+			break
+		}
+		entries, err := os.ReadDir(filepath.Join(root, sub))
+		if err != nil {
+			continue // dir missing — skip silently
+		}
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+				continue
+			}
+			if seen >= discoveryDocsMaxFiles {
+				parts = append(parts, fmt.Sprintf("[%s: %d additional files omitted — limit is %d]",
+					sub, len(entries)-seen, discoveryDocsMaxFiles))
+				break
+			}
+			rel := filepath.Join(sub, e.Name())
+			data, readErr := safeio.ReadRegularFile(filepath.Join(root, rel))
+			if readErr != nil {
+				continue
+			}
+			if !utf8.Valid(data) {
+				continue
+			}
+			content := string(data)
+			if len(content) > discoveryDocMaxChars {
+				content = content[:discoveryDocMaxChars] + "\n[truncated]"
+			}
+			parts = append(parts, fmt.Sprintf("=== %s ===\n%s", rel, content))
+			seen++
+		}
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 // ScanDirectoryTree returns a tree listing of dir up to maxDepth levels.

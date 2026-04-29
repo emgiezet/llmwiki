@@ -22,7 +22,7 @@ fail are re-queued. Safe to run via cron or manually.`,
 			if err != nil {
 				return fmt.Errorf("load global config: %w", err)
 			}
-			cfg := config.Merge(global, config.ProjectConfig{})
+			cfg := config.Merge(global, config.ClientConfig{}, config.ProjectConfig{})
 			if cfg.AnthropicAPIKey == "" {
 				cfg.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")
 			}

@@ -51,7 +51,11 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 			if err != nil {
 				return fmt.Errorf("load project config: %w", err)
 			}
-			cfg := config.Merge(global, projCfg)
+			client, err := config.LoadClientConfig(projCfg.Customer)
+			if err != nil {
+				return fmt.Errorf("load client config: %w", err)
+			}
+			cfg := config.Merge(global, client, projCfg)
 			// AnthropicAPIKey is forwarded to memory.NewFromConfig so graymatter can use
 			// the Anthropic embedding backend for semantic fact storage.
 			if cfg.AnthropicAPIKey == "" {

@@ -40,6 +40,7 @@ func main() {
 		cmd.NewHookCmd(),
 		cmd.NewVersionCmd(),
 		cmd.NewUpdateCmd(),
+		cmd.NewClientCmd(),
 	)
 
 	err := root.Execute()

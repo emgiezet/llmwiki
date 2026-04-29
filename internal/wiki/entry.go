@@ -12,28 +12,30 @@ import (
 
 // ProjectMeta is YAML front matter for a project _index.md.
 type ProjectMeta struct {
-	Name         string    `yaml:"name"`
-	Customer     string    `yaml:"customer"`
-	Type         string    `yaml:"type"`
-	Status       string    `yaml:"status"`
-	Path         string    `yaml:"path"`
-	LLM          string    `yaml:"llm"`
-	OllamaModel  string    `yaml:"ollama_model,omitempty"`
-	Tags         []string  `yaml:"tags,omitempty"`
-	LastIngested time.Time `yaml:"last_ingested"`
+	Name         string            `yaml:"name"`
+	Customer     string            `yaml:"customer"`
+	Type         string            `yaml:"type"`
+	Status       string            `yaml:"status"`
+	Path         string            `yaml:"path"`
+	LLM          string            `yaml:"llm"`
+	OllamaModel  string            `yaml:"ollama_model,omitempty"`
+	Tags         []string          `yaml:"tags,omitempty"`
+	Links        map[string]string `yaml:"links,omitempty"` // v1.3.0: external links
+	LastIngested time.Time         `yaml:"last_ingested"`
 }
 
 // ServiceMeta is YAML front matter for a per-service file.
 type ServiceMeta struct {
-	Service      string    `yaml:"service"`
-	Project      string    `yaml:"project"`
-	Customer     string    `yaml:"customer"`
-	Language     string    `yaml:"language,omitempty"`
-	Path         string    `yaml:"path,omitempty"`
-	Exposes      []string  `yaml:"exposes,omitempty"`
-	DependsOn    []string  `yaml:"depends_on,omitempty"`
-	Tags         []string  `yaml:"tags,omitempty"`
-	LastIngested time.Time `yaml:"last_ingested"`
+	Service      string            `yaml:"service"`
+	Project      string            `yaml:"project"`
+	Customer     string            `yaml:"customer"`
+	Language     string            `yaml:"language,omitempty"`
+	Path         string            `yaml:"path,omitempty"`
+	Exposes      []string          `yaml:"exposes,omitempty"`
+	DependsOn    []string          `yaml:"depends_on,omitempty"`
+	Tags         []string          `yaml:"tags,omitempty"`
+	Links        map[string]string `yaml:"links,omitempty"` // v1.3.0
+	LastIngested time.Time         `yaml:"last_ingested"`
 }
 
 // ProjectEntry holds parsed project wiki file.

@@ -36,7 +36,7 @@ func NewContextCmd() *cobra.Command {
 			}
 
 			// Initialize memory store if enabled.
-			cfg := config.Merge(global, config.ProjectConfig{})
+			cfg := config.Merge(global, config.ClientConfig{}, config.ProjectConfig{})
 			var mem *memory.Store
 			if cfg.MemoryEnabled {
 				mem, err = memory.NewFromConfig(cfg)

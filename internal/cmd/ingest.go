@@ -22,6 +22,7 @@ func NewIngestCmd() *cobra.Command {
 	var preset string
 	var sectionsFlag []string
 	var maxTokens int
+	var statusFlag string
 
 	cmd := &cobra.Command{
 		Use:   "ingest <path>",
@@ -45,7 +46,14 @@ func NewIngestCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("load project config: %w", err)
 			}
-			cfg := config.Merge(global, project)
+			// Client baseline (~/.llmwiki/clients/<customer>.yaml) fills in
+			// defaults for every project under the same customer. Missing
+			// file is not an error.
+			client, err := config.LoadClientConfig(project.Customer)
+			if err != nil {
+				return fmt.Errorf("load client config: %w", err)
+			}
+			cfg := config.Merge(global, client, project)
 
 			// CLI flag overrides for extraction (highest precedence).
 			if cmd.Flags().Changed("preset") {
@@ -56,6 +64,13 @@ func NewIngestCmd() *cobra.Command {
 			}
 			if cmd.Flags().Changed("max-tokens") {
 				cfg.Extraction.MaxTokens = maxTokens
+			}
+			if cmd.Flags().Changed("status") {
+				s := config.ProjectStatus(statusFlag)
+				if err := config.ValidateStatus(s); err != nil {
+					return fmt.Errorf("--status: %w", err)
+				}
+				cfg.Status = s
 			}
 
 			// API key can also come from env
@@ -116,7 +131,7 @@ func NewIngestCmd() *cobra.Command {
 					recalled, _ = mem.RecallForProject(cmd.Context(), projectName, cfg.Customer)
 				}
 
-				serviceSections, err := ingestion.ResolveSections(cfg.Extraction, ingestion.ScopeService)
+				serviceSections, err := ingestion.ResolveSections(cfg.Extraction, cfg.Status, ingestion.ScopeService)
 				if err != nil {
 					return fmt.Errorf("resolve service sections: %w", err)
 				}
@@ -161,5 +176,6 @@ func NewIngestCmd() *cobra.Command {
 	cmd.Flags().StringVar(&preset, "preset", "", "Extraction preset (default|minimal|software|feature|full) — overrides llmwiki.yaml")
 	cmd.Flags().StringSliceVar(&sectionsFlag, "sections", nil, "Comma-separated section IDs to extract — overrides llmwiki.yaml and --preset")
 	cmd.Flags().IntVar(&maxTokens, "max-tokens", 0, "Cap LLM output tokens per call (0 = backend default)")
+	cmd.Flags().StringVar(&statusFlag, "status", "", "Project lifecycle status (production|poc|discovery) — overrides llmwiki.yaml")
 	return cmd
 }

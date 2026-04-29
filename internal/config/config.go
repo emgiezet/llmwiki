@@ -37,6 +37,50 @@ type ProjectConfig struct {
 	Customer    string           `yaml:"customer"`
 	Type        string           `yaml:"type"` // client | personal | oss
 	Extraction  ExtractionConfig `yaml:"extraction,omitempty"`
+	// v1.3.0 richer metadata — all optional, inherited from ClientConfig.
+	Status ProjectStatus `yaml:"status,omitempty"`
+	Links  LinksConfig   `yaml:"links,omitempty"`
+	Team   TeamConfig    `yaml:"team,omitempty"`
+	Cost   CostConfig    `yaml:"cost,omitempty"`
+}
+
+// ProjectStatus classifies where a project sits in its lifecycle. It
+// influences which wiki sections the LLM is asked to produce (production
+// projects get Architecture + Services; discovery projects get
+// Requirements + Open Questions; POCs get a lighter shape). Empty is
+// treated as "production" to preserve pre-v1.3.0 behaviour.
+type ProjectStatus string
+
+const (
+	StatusProduction ProjectStatus = "production"
+	StatusPOC        ProjectStatus = "poc"
+	StatusDiscovery  ProjectStatus = "discovery"
+)
+
+// LinksConfig is a flat map of label → URL. Well-known keys
+// (github/gitlab/jira/confluence/clickup/trello/notion/linear/slack/wiki)
+// get nicer labels + icons when rendered to markdown; unknown keys pass
+// through as generic links. The rendering lives in internal/wiki.
+type LinksConfig map[string]string
+
+// TeamConfig captures who owns / supports / escalates a project. Every
+// field is optional; the wiki section is rendered only if at least one
+// field is set.
+type TeamConfig struct {
+	Lead          string `yaml:"lead,omitempty"`
+	OncallChannel string `yaml:"oncall_channel,omitempty"`
+	Escalation    string `yaml:"escalation,omitempty"`
+	Notes         string `yaml:"notes,omitempty"`
+}
+
+// CostConfig carries infra + team cost figures for a project. Numbers are
+// optional; when partial or absent, the wiki renders a how-to-estimate
+// template rather than a calculation.
+type CostConfig struct {
+	InfraMonthlyUSD       float64 `yaml:"infra_monthly_usd,omitempty"`
+	TeamFTE               float64 `yaml:"team_fte,omitempty"`
+	TeamFTERateMonthlyUSD float64 `yaml:"team_fte_rate_usd_monthly,omitempty"`
+	Notes                 string  `yaml:"notes,omitempty"`
 }
 
 // ExtractionConfig controls which markdown sections the LLM is asked to
@@ -54,7 +98,7 @@ type ExtractionConfig struct {
 	MaxTokens int `yaml:"max_tokens,omitempty"`
 }
 
-// Merged holds resolved config (global defaults + project overrides)
+// Merged holds resolved config (global defaults + client baseline + project overrides)
 type Merged struct {
 	WikiRoot           string
 	LLM                string
@@ -72,6 +116,28 @@ type Merged struct {
 	OpencodeBinaryPath string
 	PiBinaryPath       string
 	Extraction         ExtractionConfig
+	// v1.3.0 richer project metadata, three-way merged.
+	Status ProjectStatus
+	Links  LinksConfig
+	Team   TeamConfig
+	Cost   CostConfig
+	// Source tracks, per field, whether the merged value came from the
+	// client baseline. The wiki renderer uses this to annotate inherited
+	// values with "*(inherited from client)*" so users can tell project-
+	// specific settings from org-wide defaults.
+	Source MergedSource
+}
+
+// MergedSource flags which fields of Merged came from the client baseline
+// (vs global or project). Only the fields that the wiki renderer surfaces
+// are tracked; extend as new inherited fields are added.
+type MergedSource struct {
+	LinksFromClient      map[string]bool // per-key: true = inherited from client
+	TeamLeadFromClient   bool
+	TeamOncallFromClient bool
+	TeamEscFromClient    bool
+	TeamNotesFromClient  bool
+	CostFromClient       bool // true if any cost field came from client
 }
 
 func homeDir() string {
@@ -122,37 +188,19 @@ func LoadProjectConfig(projectDir string) (ProjectConfig, error) {
 	if err := validation.NameComponentOptional("type", cfg.Type); err != nil {
 		return cfg, fmt.Errorf("llmwiki.yaml: %w", err)
 	}
+	if err := ValidateStatus(cfg.Status); err != nil {
+		return cfg, fmt.Errorf("llmwiki.yaml: %w", err)
+	}
+	if err := ValidateCost(cfg.Cost); err != nil {
+		return cfg, fmt.Errorf("llmwiki.yaml: %w", err)
+	}
+	for _, w := range ValidateLinks(cfg.Links) {
+		fmt.Fprintln(os.Stderr, "warning:", w)
+	}
 	return cfg, nil
 }
 
-func Merge(g GlobalConfig, p ProjectConfig) Merged {
-	memDir := g.MemoryDir
-	if memDir == "" {
-		memDir = filepath.Join(homeDir(), ".llmwiki", "memory")
-	}
-	m := Merged{
-		WikiRoot:           g.WikiRoot,
-		LLM:                g.LLM,
-		OllamaHost:         g.OllamaHost,
-		AllowRemoteOllama:  g.AllowRemoteOllama,
-		AnthropicAPIKey:    g.AnthropicAPIKey,
-		Customer:           p.Customer,
-		Type:               p.Type,
-		OllamaModel:        p.OllamaModel,
-		MemoryEnabled:      g.MemoryEnabled,
-		MemoryDir:          memDir,
-		ClaudeBinaryPath:   g.ClaudeBinaryPath,
-		GeminiBinaryPath:   g.GeminiBinaryPath,
-		CodexBinaryPath:    g.CodexBinaryPath,
-		OpencodeBinaryPath: g.OpencodeBinaryPath,
-		PiBinaryPath:       g.PiBinaryPath,
-		Extraction:         p.Extraction,
-	}
-	if p.LLM != "" {
-		m.LLM = p.LLM
-	}
-	return m
-}
+// Merge lives in merge.go — see that file for the three-way resolver.
 
 // DefaultGlobalConfigPath returns ~/.llmwiki/config.yaml
 func DefaultGlobalConfigPath() string {

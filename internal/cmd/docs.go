@@ -42,7 +42,11 @@ With --write, overwrites the target file in the project directory.`,
 			if err != nil {
 				return fmt.Errorf("load project config: %w", err)
 			}
-			cfg := config.Merge(global, project)
+			client, err := config.LoadClientConfig(project.Customer)
+			if err != nil {
+				return fmt.Errorf("load client config: %w", err)
+			}
+			cfg := config.Merge(global, client, project)
 
 			if cfg.AnthropicAPIKey == "" {
 				cfg.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")

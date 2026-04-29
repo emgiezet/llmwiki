@@ -28,7 +28,7 @@ func NewRememberCmd() *cobra.Command {
 			if global.AnthropicAPIKey == "" {
 				global.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")
 			}
-			cfg := config.Merge(global, config.ProjectConfig{})
+			cfg := config.Merge(global, config.ClientConfig{}, config.ProjectConfig{})
 			if !cfg.MemoryEnabled {
 				return fmt.Errorf("memory is not enabled; set memory_enabled: true in %s", config.DefaultGlobalConfigPath())
 			}
@@ -74,7 +74,7 @@ func NewRecallCmd() *cobra.Command {
 			if global.AnthropicAPIKey == "" {
 				global.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")
 			}
-			cfg := config.Merge(global, config.ProjectConfig{})
+			cfg := config.Merge(global, config.ClientConfig{}, config.ProjectConfig{})
 			if !cfg.MemoryEnabled {
 				return fmt.Errorf("memory is not enabled; set memory_enabled: true in %s", config.DefaultGlobalConfigPath())
 			}

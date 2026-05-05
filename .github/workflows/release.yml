@@ -1,9 +1,13 @@
 name: release
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v2.2.0)"
+        required: true
 
 permissions:
   contents: write # upload release assets

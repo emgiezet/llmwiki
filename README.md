@@ -121,11 +121,31 @@ Facts decay over time (30-day half-life) and consolidate in the background. Embe
 
 Builds are published for macOS (arm64, amd64) and Linux (amd64, arm64).
 
-**One-liner (recommended)**
+### Quick download (pre-built binary)
+
+Pick your platform and grab the tarball straight from the [latest release](https://github.com/emgiezet/llmwiki/releases/latest):
+
+| Platform        | Asset                                            |
+|-----------------|--------------------------------------------------|
+| macOS Apple Silicon | `llmwiki_<version>_darwin_arm64.tar.gz`     |
+| macOS Intel     | `llmwiki_<version>_darwin_amd64.tar.gz`          |
+| Linux x86_64    | `llmwiki_<version>_linux_amd64.tar.gz`           |
+| Linux arm64     | `llmwiki_<version>_linux_arm64.tar.gz`           |
+
+With the [GitHub CLI](https://cli.github.com/) — downloads + extracts in one step:
+
+```bash
+gh release download --repo emgiezet/llmwiki --pattern '*darwin_arm64.tar.gz' -O - | tar -xz
+sudo mv llmwiki /usr/local/bin/        # or: mv llmwiki ~/.local/bin/
+```
+
+Each release also ships `checksums.txt` (SHA256). The one-liner installer below verifies it for you.
+
+### One-liner installer (recommended)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/emgiezet/llmwiki/main/install.sh | sh
 ```
-Installs the latest release to `~/.local/bin/llmwiki`. If that directory isn't on your `$PATH`, the installer prints the exact `export PATH=…` line to add.
+Installs the latest release to `~/.local/bin/llmwiki`, auto-detects OS/arch, and verifies the SHA256 checksum. If that directory isn't on your `$PATH`, the installer prints the exact `export PATH=…` line to add.
 
 **Pinned version**
 ```bash

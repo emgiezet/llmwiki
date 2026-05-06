@@ -382,7 +382,8 @@ llm: claude-code
 ollama_host: http://localhost:11434
 anthropic_api_key: ""   # or set ANTHROPIC_API_KEY env var
 memory_enabled: false   # enable graymatter persistent memory
-memory_dir: ~/.llmwiki/memory   # where gray.db lives
+memory_mode: project    # project (default) | global — see Memory section
+memory_dir: ~/.llmwiki/memory   # used when memory_mode: global
 
 # Optional PATH overrides for agentic-coder CLIs (empty = look up by name):
 claude_binary_path: ""
@@ -418,9 +419,30 @@ Any of these sections is omitted entirely when the corresponding YAML block is e
 
 ### Memory
 
-Set `memory_enabled: true` in your global config to activate [graymatter](https://github.com/angelnicolasc/graymatter) integration. Memory is stored in a single `gray.db` file at `~/.llmwiki/memory/`. It reuses your existing `anthropic_api_key` for embeddings, and falls back to Ollama or keyword-only search if no key is available.
+Set `memory_enabled: true` in your global config to activate [graymatter](https://github.com/angelnicolasc/graymatter) integration. It reuses your existing `anthropic_api_key` for embeddings, and falls back to Ollama or keyword-only search if no key is available.
 
-Seed tribal knowledge that the scanner can't detect:
+#### Memory modes
+
+| `memory_mode` | Store location | Lock scope | Cross-project recall |
+|---|---|---|---|
+| `project` *(default)* | `{projectDir}/.graymatter/` | per-project | no |
+| `global` | `memory_dir` (`~/.llmwiki/memory/` by default) | process-wide | yes |
+
+**Project mode** (default) gives each project its own isolated `gray.db`. Multiple agents working on different projects never block each other. This aligns with how the `graymatter` MCP server works by default.
+
+**Global mode** keeps a single shared store — useful when you want `llmwiki recall` to search across all projects at once. Concurrent agents hitting the same store will contend on the bbolt file lock; llmwiki degrades gracefully (logs a warning, skips memory) rather than crashing.
+
+#### Worktree pattern
+
+When a git worktree should share memory with its parent checkout, add to the worktree's `llmwiki.yaml`:
+
+```yaml
+memory_dir: /path/to/main-checkout/.graymatter
+```
+
+This per-project `memory_dir` override takes priority over the global mode, so the worktree reads/writes the same store as the main checkout.
+
+#### Seeding tribal knowledge
 
 ```bash
 llmwiki remember --project my-api "billing service was rewritten from PHP to Go in Q1 2025"

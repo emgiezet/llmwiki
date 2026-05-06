@@ -20,6 +20,11 @@ func Merge(g GlobalConfig, c ClientConfig, p ProjectConfig) Merged {
 		memDir = filepath.Join(homeDir(), ".llmwiki", "memory")
 	}
 
+	memMode := g.MemoryMode
+	if memMode == "" {
+		memMode = MemoryModeProject
+	}
+
 	m := Merged{
 		// Global-only fields.
 		WikiRoot:           g.WikiRoot,
@@ -27,7 +32,9 @@ func Merge(g GlobalConfig, c ClientConfig, p ProjectConfig) Merged {
 		AllowRemoteOllama:  g.AllowRemoteOllama,
 		AnthropicAPIKey:    g.AnthropicAPIKey,
 		MemoryEnabled:      g.MemoryEnabled,
+		MemoryMode:         memMode,
 		MemoryDir:          memDir,
+		ProjectMemoryDir:   p.MemoryDir,
 		ClaudeBinaryPath:   g.ClaudeBinaryPath,
 		GeminiBinaryPath:   g.GeminiBinaryPath,
 		CodexBinaryPath:    g.CodexBinaryPath,

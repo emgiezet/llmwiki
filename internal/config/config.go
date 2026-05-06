@@ -11,6 +11,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// MemoryModeProject stores llmwiki facts in {projectDir}/.graymatter — one
+// database per project, no cross-project lock contention. This is the
+// default and aligns with how the graymatter MCP server works.
+const MemoryModeProject = "project"
+
+// MemoryModeGlobal stores all facts in a single shared store (cfg.MemoryDir).
+// Enables cross-project recall but introduces a global bbolt lock that
+// serialises concurrent agents / MCP servers.
+const MemoryModeGlobal = "global"
+
 type GlobalConfig struct {
 	WikiRoot          string `yaml:"wiki_root"`
 	LLM               string `yaml:"llm"`
@@ -19,6 +29,9 @@ type GlobalConfig struct {
 	AnthropicAPIKey   string `yaml:"anthropic_api_key"`
 	MemoryEnabled     bool   `yaml:"memory_enabled"`
 	MemoryDir         string `yaml:"memory_dir"`
+	// MemoryMode controls where facts are stored: "project" (default, per-project
+	// .graymatter/ directory) or "global" (single shared MemoryDir store).
+	MemoryMode string `yaml:"memory_mode"`
 	// ClaudeBinaryPath overrides the default PATH lookup for the 'claude' binary.
 	// Useful when the Claude Code CLI is installed in a non-standard location or
 	// when PATH hijacking is a concern. Empty (default) = look up 'claude' via PATH.
@@ -42,6 +55,11 @@ type ProjectConfig struct {
 	Links  LinksConfig   `yaml:"links,omitempty"`
 	Team   TeamConfig    `yaml:"team,omitempty"`
 	Cost   CostConfig    `yaml:"cost,omitempty"`
+	// v1.4.0 per-project memory dir override. When set, this path is used
+	// instead of the mode-derived default. Useful for git worktrees that want
+	// to share memory with the main checkout:
+	//   memory_dir: /path/to/main-checkout/.graymatter
+	MemoryDir string `yaml:"memory_dir,omitempty"`
 }
 
 // ProjectStatus classifies where a project sits in its lifecycle. It
@@ -109,7 +127,9 @@ type Merged struct {
 	Customer           string
 	Type               string
 	MemoryEnabled      bool
-	MemoryDir          string
+	MemoryMode         string // "project" | "global"; default "project"
+	MemoryDir          string // global fallback store path
+	ProjectMemoryDir   string // per-project override from llmwiki.yaml (worktree use-case)
 	ClaudeBinaryPath   string
 	GeminiBinaryPath   string
 	CodexBinaryPath    string
@@ -166,6 +186,9 @@ func LoadGlobalConfig(path string) (GlobalConfig, error) {
 	}
 	if cfg.AnthropicAPIKey != "" {
 		fmt.Fprintln(os.Stderr, "warning: anthropic_api_key stored in plaintext in ~/.llmwiki/config.yaml — prefer the ANTHROPIC_API_KEY environment variable")
+	}
+	if err := ValidateMemoryMode(cfg.MemoryMode); err != nil {
+		return cfg, fmt.Errorf("~/.llmwiki/config.yaml: %w", err)
 	}
 	return cfg, nil
 }

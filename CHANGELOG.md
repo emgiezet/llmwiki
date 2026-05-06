@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1](https://github.com/emgiezet/llmwiki/compare/v2.2.0...v2.2.1) (2026-05-05)
+
+
+### Bug Fixes
+
+* **ci:** goreleaser on release:created + workflow_dispatch ([#10](https://github.com/emgiezet/llmwiki/issues/10)) ([df62ccc](https://github.com/emgiezet/llmwiki/commit/df62ccc91238cdeb068642c19506a3bf4e042367))
+
 ## [2.2.0](https://github.com/emgiezet/llmwiki/compare/v2.1.0...v2.2.0) (2026-04-29)
 
 

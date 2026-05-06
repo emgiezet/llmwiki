@@ -91,8 +91,12 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 				return nil
 			}
 
+			// Resolve the store directory once; used by ProbeLock, QueueAbsorb,
+			// DrainAbsorbQueue and the Store itself so they all target the same path.
+			memDir := memory.ResolveDir(cfg, projectDir)
+
 			if fastFail {
-				if err := memory.ProbeLock(cfg.MemoryDir); errors.Is(err, memory.ErrLockBusy) {
+				if err := memory.ProbeLock(memDir); errors.Is(err, memory.ErrLockBusy) {
 					// DB is busy; queue the session instead of dropping it.
 					content, berr := ingestion.BuildSessionContent(projectDir, note)
 					if berr != nil {
@@ -102,7 +106,7 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 						}
 						return fmt.Errorf("build session content: %w", berr)
 					}
-					qerr := memory.QueueAbsorb(cfg.MemoryDir, memory.QueuedAbsorb{
+					qerr := memory.QueueAbsorb(memDir, memory.QueuedAbsorb{
 						Timestamp:   time.Now().UTC(),
 						ProjectName: projectName,
 						Customer:    resolvedCustomer,
@@ -116,13 +120,13 @@ Facts accumulate over time. Materialize them into a wiki entry with:
 				}
 			}
 
-			mem, err := memory.NewFromConfig(cfg)
+			mem, err := memory.NewForProject(cfg, projectDir)
 			if err != nil {
 				return fmt.Errorf("init memory: %w", err)
 			}
 			defer mem.Close()
 
-			if res, derr := memory.DrainAbsorbQueue(cmd.Context(), cfg.MemoryDir, mem); derr != nil {
+			if res, derr := memory.DrainAbsorbQueue(cmd.Context(), memDir, mem); derr != nil {
 				fmt.Fprintf(os.Stderr, "warning: queue drain failed: %v\n", derr)
 			} else if res.Processed > 0 || res.Requeued > 0 {
 				fmt.Fprintf(os.Stderr, "drained %d queued absorb(s); %d requeued\n", res.Processed, res.Requeued)

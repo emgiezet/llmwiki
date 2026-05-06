@@ -95,10 +95,10 @@ func NewIngestCmd() *cobra.Command {
 				return fmt.Errorf("init LLM: %w", err)
 			}
 
-			// Initialize memory store.
+			// Initialize memory store — scoped to projectDir when memory_mode=project.
 			var mem *memory.Store
 			if cfg.MemoryEnabled && !noMemory {
-				mem, err = memory.NewFromConfig(cfg)
+				mem, err = memory.NewForProject(cfg, projectDir)
 				if err != nil {
 					return fmt.Errorf("init memory: %w", err)
 				}

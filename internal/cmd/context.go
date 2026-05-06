@@ -35,11 +35,20 @@ func NewContextCmd() *cobra.Command {
 				return err
 			}
 
+			// Derive project dir from --inject path (best proxy for project root)
+			// or fall back to CWD so memory_mode=project finds the right store.
+			projectDir := ""
+			if inject != "" {
+				projectDir = filepath.Dir(inject)
+			} else {
+				projectDir, _ = os.Getwd()
+			}
+
 			// Initialize memory store if enabled.
 			cfg := config.Merge(global, config.ClientConfig{}, config.ProjectConfig{})
 			var mem *memory.Store
 			if cfg.MemoryEnabled {
-				mem, err = memory.NewFromConfig(cfg)
+				mem, err = memory.NewForProject(cfg, projectDir)
 				if err != nil {
 					return fmt.Errorf("init memory: %w", err)
 				}

@@ -5,6 +5,16 @@ import (
 	"net/url"
 )
 
+// ValidateMemoryMode returns an error if mode is not one of the known values.
+// Empty string is allowed; it resolves to MemoryModeProject in Merge.
+func ValidateMemoryMode(mode string) error {
+	switch mode {
+	case "", MemoryModeProject, MemoryModeGlobal:
+		return nil
+	}
+	return fmt.Errorf("invalid memory_mode %q — must be one of: project, global", mode)
+}
+
 // ValidStatuses enumerates the allowed ProjectStatus values. Empty is
 // also allowed — it's interpreted as "production" at the consumer.
 var ValidStatuses = []ProjectStatus{

@@ -22,7 +22,7 @@ func NewClaudeCodeLLM(binaryPath string) LLM {
 	return &ClaudeCodeLLM{binaryPath: binaryPath}
 }
 
-// Generate shells out to `claude -p <prompt>`.
+// Generate shells out to `claude -p` with the prompt on stdin.
 // Requires claude CLI to be installed and authenticated.
 func (l *ClaudeCodeLLM) Generate(ctx context.Context, prompt string) (string, error) {
 	if _, ok := ctx.Deadline(); !ok {
@@ -30,7 +30,8 @@ func (l *ClaudeCodeLLM) Generate(ctx context.Context, prompt string) (string, er
 		ctx, cancel = context.WithTimeout(ctx, 5*time.Minute)
 		defer cancel()
 	}
-	cmd := exec.CommandContext(ctx, l.binaryPath, "-p", prompt)
+	cmd := exec.CommandContext(ctx, l.binaryPath, "-p")
+	cmd.Stdin = strings.NewReader(prompt)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

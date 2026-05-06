@@ -3,6 +3,8 @@ package memory
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -24,14 +26,47 @@ func New(dataDir string) *Store {
 	return &Store{mem: mem}
 }
 
-// NewFromConfig builds a Store from llmwiki merged config.
-// Returns a no-op Store if memory is disabled.
-func NewFromConfig(cfg config.Merged) (*Store, error) {
+// ResolveDir returns the store path that would be used for the given project
+// directory under the current config. Exported so commands that need the path
+// (e.g. for ProbeLock / QueueAbsorb) can stay consistent with the Store.
+func ResolveDir(cfg config.Merged, projectDir string) string {
+	return resolveMemoryDir(cfg, projectDir)
+}
+
+// resolveMemoryDir returns the store path to open based on memory_mode.
+// projectDir="" means the caller has no project context (e.g. standalone
+// recall/remember commands); the function falls back to the global store.
+func resolveMemoryDir(cfg config.Merged, projectDir string) string {
+	// Per-project override in llmwiki.yaml always wins (worktree use-case).
+	if cfg.ProjectMemoryDir != "" {
+		return cfg.ProjectMemoryDir
+	}
+	if cfg.MemoryMode == config.MemoryModeProject && projectDir != "" {
+		return filepath.Join(projectDir, ".graymatter")
+	}
+	return cfg.MemoryDir
+}
+
+// NewForProject builds a Store with the directory resolved from memory_mode
+// and projectDir. Commands that have a project directory (ingest, absorb,
+// context) should call this; standalone commands (recall, remember) pass "".
+func NewForProject(cfg config.Merged, projectDir string) (*Store, error) {
 	if !cfg.MemoryEnabled {
 		return &Store{}, nil
 	}
+	dir := resolveMemoryDir(cfg, projectDir)
+	return openStore(cfg, dir)
+}
+
+// NewFromConfig builds a Store using the global store path. Kept for
+// backwards compatibility; prefer NewForProject when a project dir is known.
+func NewFromConfig(cfg config.Merged) (*Store, error) {
+	return NewForProject(cfg, "")
+}
+
+func openStore(cfg config.Merged, dir string) (*Store, error) {
 	gmCfg := graymatter.DefaultConfig()
-	gmCfg.DataDir = cfg.MemoryDir
+	gmCfg.DataDir = dir
 	gmCfg.EmbeddingMode = graymatter.EmbeddingAuto
 	gmCfg.AsyncConsolidate = true
 	gmCfg.DecayHalfLife = 30 * 24 * time.Hour
@@ -44,6 +79,12 @@ func NewFromConfig(cfg config.Merged) (*Store, error) {
 
 	mem, err := graymatter.NewWithConfig(gmCfg)
 	if err != nil {
+		// Locked DB (bbolt timeout) is a soft error — the MCP server or another
+		// llmwiki process may hold the lock. Degrade gracefully to no-op.
+		if strings.Contains(err.Error(), "timeout") || strings.Contains(err.Error(), "lock") {
+			fmt.Fprintf(os.Stderr, "warning: memory store locked (%v) — running without memory\n", err)
+			return &Store{}, nil
+		}
 		return nil, fmt.Errorf("init graymatter: %w", err)
 	}
 	return &Store{mem: mem}, nil

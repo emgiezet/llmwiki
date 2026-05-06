@@ -69,7 +69,10 @@ Requires prior 'absorb' sessions or 'ingest' to populate memory.`,
 				return fmt.Errorf("init LLM: %w", err)
 			}
 
-			mem, err := memory.NewFromConfig(cfg)
+			// Use CWD as the project dir hint so memory_mode=project opens the
+			// right .graymatter/ store when the user is in the project directory.
+			cwd, _ := os.Getwd()
+			mem, err := memory.NewForProject(cfg, cwd)
 			if err != nil {
 				return fmt.Errorf("init memory: %w", err)
 			}

@@ -78,7 +78,7 @@ With --write, overwrites the target file in the project directory.`,
 			// 3. Recall from memory if enabled.
 			var recalled string
 			if cfg.MemoryEnabled {
-				mem, memErr := memory.NewFromConfig(cfg)
+				mem, memErr := memory.NewForProject(cfg, projectDir)
 				if memErr == nil {
 					defer mem.Close()
 					recalled, _ = mem.RecallForProject(cmd.Context(), projectName, cfg.Customer)

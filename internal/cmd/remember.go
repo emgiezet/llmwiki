@@ -33,18 +33,18 @@ func NewRememberCmd() *cobra.Command {
 				return fmt.Errorf("memory is not enabled; set memory_enabled: true in %s", config.DefaultGlobalConfigPath())
 			}
 
-			mem, err := memory.NewFromConfig(cfg)
+			if err := validation.NameComponent("project", project); err != nil {
+				return err
+			}
+
+			// In project mode, use CWD as the project dir so the store resolves
+			// to the current project's .graymatter/; falls back to global store.
+			cwd, _ := os.Getwd()
+			mem, err := memory.NewForProject(cfg, cwd)
 			if err != nil {
 				return fmt.Errorf("init memory: %w", err)
 			}
 			defer mem.Close()
-
-			if project == "" {
-				return fmt.Errorf("--project is required")
-			}
-			if err := validation.NameComponent("project", project); err != nil {
-				return err
-			}
 
 			if err := mem.RememberIngestion(cmd.Context(), project, "", fact, nil); err != nil {
 				return err
@@ -79,7 +79,10 @@ func NewRecallCmd() *cobra.Command {
 				return fmt.Errorf("memory is not enabled; set memory_enabled: true in %s", config.DefaultGlobalConfigPath())
 			}
 
-			mem, err := memory.NewFromConfig(cfg)
+			// In project mode, use CWD so the store resolves to the current
+			// project's .graymatter/; falls back to global store otherwise.
+			cwd, _ := os.Getwd()
+			mem, err := memory.NewForProject(cfg, cwd)
 			if err != nil {
 				return fmt.Errorf("init memory: %w", err)
 			}

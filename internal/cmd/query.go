@@ -38,11 +38,13 @@ func NewQueryCmd() *cobra.Command {
 				global.AnthropicAPIKey = os.Getenv("ANTHROPIC_API_KEY")
 			}
 
-			// Initialize memory store if enabled.
+			// Initialize memory store if enabled. query is cross-project so we use
+			// CWD as the project dir hint; in global mode this falls through anyway.
 			cfg := config.Merge(global, config.ClientConfig{}, config.ProjectConfig{})
 			var memoryContext string
 			if cfg.MemoryEnabled {
-				mem, memErr := memory.NewFromConfig(cfg)
+				cwd, _ := os.Getwd()
+				mem, memErr := memory.NewForProject(cfg, cwd)
 				if memErr == nil {
 					defer mem.Close()
 					if facts, recallErr := mem.RecallForQuery(cmd.Context(), question); recallErr == nil && len(facts) > 0 {

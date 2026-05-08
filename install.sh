@@ -126,7 +126,7 @@ arch="$(detect_arch)"
 version="$(resolve_version)"
 dest="$(install_dir)"
 
-archive="${BIN_NAME}_${version}_${os}_${arch}.tar.gz"
+archive="${BIN_NAME}_${version#v}_${os}_${arch}.tar.gz"
 base_url="https://github.com/${REPO}/releases/download/${version}"
 
 log "installing ${BIN_NAME} ${version} (${os}/${arch}) → ${dest}"

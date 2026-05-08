@@ -178,7 +178,10 @@ The notice is suppressed in CI, non-TTY output, dev builds, and when `LLMWIKI_NO
 ## Quick Start
 
 ```bash
-# Ingest a project
+# Set up a project (creates llmwiki.yaml + optional graymatter memory layer)
+llmwiki init ~/workspace/my-project --customer acme --type client
+
+# Ingest a project (uses Claude Code CLI by default)
 llmwiki ingest ~/workspace/my-project
 
 # See what's tracked
@@ -252,6 +255,7 @@ Generates a client-level `_index.md` with executive summary, C4 diagram, archite
 
 | Command | Description |
 |---------|-------------|
+| `init [path]` | Create `llmwiki.yaml` and optionally wire up graymatter hooks |
 | `ingest <path>` | Scan a project and generate/update wiki entries |
 | `ingest <path> --no-memory` | Ingest without memory recall/storage |
 | `absorb <path>` | Extract session facts into memory (near-zero token cost) |
@@ -311,6 +315,25 @@ llmwiki works with [NanoClaw](https://nanoclaw.com) — a Discord bot that can q
 
 Ask NanoClaw questions about any of your tracked projects and it draws on the wiki entries llmwiki generated. See [docs/nanoclaw-integration.md](docs/nanoclaw-integration.md) for setup instructions.
 
+## Graymatter Integration
+
+`llmwiki init` can wire up [graymatter](https://github.com/gdgvda/graymatter) — a local vector memory store — as a passive layer on top of Claude Code sessions.
+
+After initialisation each Claude Code session automatically saves a compact summary to `.graymatter/` when the session ends (via the `Stop` hook). The graymatter MCP server exposes those memories back to Claude Code, so context from past sessions is available without manual effort.
+
+```
+project/
+├── .claude/
+│   ├── settings.local.json     # Stop hook registered here
+│   └── graymatter_stop.sh      # captures session summary → graymatter
+├── .graymatter/                # local vector DB (git-ignored)
+│   ├── gray.db
+│   └── vectors/
+└── .mcp.json                   # graymatter MCP server wired here
+```
+
+The memory capture is **passive and async** — it never blocks a session and produces no visible output.
+
 ## Obsidian Compatibility
 
 ![llmwiki graph view in Obsidian](docs/obsidian2.png)
@@ -333,6 +356,8 @@ global  →  client  →  project
 ```
 
 ### Per-project: `llmwiki.yaml` (at project root)
+
+Drop this in the project root (or let `llmwiki init` create it) to set its type, customer, and LLM backend:
 
 ```yaml
 type: client                # client | personal | oss
@@ -582,6 +607,19 @@ Releases are cut automatically from commit history on `main`:
 [release-please](https://github.com/googleapis/release-please) maintains a running "Release PR" that accumulates unreleased commits. Merging that PR creates the git tag and GitHub Release; the release workflow then builds binaries for all four target platforms and attaches them along with `checksums.txt` and `install.sh`.
 
 See all releases: [github.com/emgiezet/llmwiki/releases](https://github.com/emgiezet/llmwiki/releases).
+
+## Typical Workflow
+
+```bash
+# One-time setup per project
+llmwiki init ~/workspace/my-project --customer acme
+
+# After meaningful work on a project
+llmwiki ingest ~/workspace/my-project
+llmwiki link
+llmwiki index acme
+llmwiki context my-project --inject ~/workspace/my-project/CLAUDE.md
+```
 
 ## License
 

@@ -1,6 +1,6 @@
 module github.com/emgiezet/llmwiki
 
-go 1.25.9
+go 1.25.10
 
 require (
 	github.com/angelnicolasc/graymatter v0.5.0

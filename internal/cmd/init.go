@@ -130,7 +130,7 @@ func writeProjectConfig(projectDir, customer, projectType string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, 0o600)
 }
 
 func graymatterInstalled() bool {
@@ -140,12 +140,12 @@ func graymatterInstalled() bool {
 
 func installGraymatterHook(projectDir string) error {
 	claudeDir := filepath.Join(projectDir, ".claude")
-	if err := os.MkdirAll(claudeDir, 0o755); err != nil {
+	if err := os.MkdirAll(claudeDir, 0o750); err != nil {
 		return fmt.Errorf("create .claude: %w", err)
 	}
 
 	scriptPath := filepath.Join(claudeDir, "graymatter_stop.sh")
-	if err := os.WriteFile(scriptPath, []byte(graymatterStopScript), 0o755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(graymatterStopScript), 0o755); err != nil { // #nosec G306 -- shell hook must be executable
 		return fmt.Errorf("write script: %w", err)
 	}
 
@@ -163,7 +163,7 @@ func installGraymatterHook(projectDir string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(settingsPath, append(data, '\n'), 0o644)
+	return os.WriteFile(settingsPath, append(data, '\n'), 0o600)
 }
 
 func installGraymatterMCP(projectDir string) error {
@@ -193,7 +193,7 @@ func installGraymatterMCP(projectDir string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(mcpPath, append(data, '\n'), 0o644)
+	return os.WriteFile(mcpPath, append(data, '\n'), 0o600)
 }
 
 func loadJSONMap(path string) (map[string]any, error) {

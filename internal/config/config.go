@@ -60,6 +60,9 @@ type ProjectConfig struct {
 	// to share memory with the main checkout:
 	//   memory_dir: /path/to/main-checkout/.graymatter
 	MemoryDir string `yaml:"memory_dir,omitempty"`
+	// v2.x change tracking output mode.
+	OutputMode   string `yaml:"output_mode,omitempty"`    // local | central | both
+	LocalDocsDir string `yaml:"local_docs_dir,omitempty"` // default: docs/llmwiki
 }
 
 // ProjectStatus classifies where a project sits in its lifecycle. It
@@ -130,6 +133,8 @@ type Merged struct {
 	MemoryMode         string // "project" | "global"; default "project"
 	MemoryDir          string // global fallback store path
 	ProjectMemoryDir   string // per-project override from llmwiki.yaml (worktree use-case)
+	OutputMode         string // "local" | "central" | "both"; default "central"
+	LocalDocsDir       string // default "docs/llmwiki"
 	ClaudeBinaryPath   string
 	GeminiBinaryPath   string
 	CodexBinaryPath    string

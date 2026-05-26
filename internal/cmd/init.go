@@ -75,6 +75,13 @@ PYEOF
 graymatter remember "$AGENT_ID" "session=$SESSION_ID
 $SUMMARY" --dir "$GRAYMATTER_DIR" --quiet 2>/dev/null
 
+# Run a non-blocking freshness check on files mentioned in this session.
+TOUCHED_FILES=$(echo "$SUMMARY" | grep -oE '[a-zA-Z0-9_./-]+\.[a-zA-Z]+' | grep '/' | tr '\n' ',' | sed 's/,$//')
+if [ -n "$TOUCHED_FILES" ] && command -v llmwiki >/dev/null 2>&1; then
+  llmwiki check --json --files "$TOUCHED_FILES" . 2>/dev/null | \
+    graymatter remember "$AGENT_ID" "llmwiki-staleness-check" --dir "$GRAYMATTER_DIR" --quiet 2>/dev/null || true
+fi
+
 exit 0
 `
 

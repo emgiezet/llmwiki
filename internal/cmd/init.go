@@ -13,6 +13,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const preCommitHookScript = `#!/bin/sh
+# Installed by: llmwiki init --hooks
+# Checks if any wiki entries covering staged files are stale.
+STAGED=$(git diff --cached --name-only | tr '\n' ',')
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+if command -v llmwiki >/dev/null 2>&1; then
+  llmwiki check --exit-code --files "$STAGED" .
+fi
+`
+
 const graymatterStopScript = `#!/bin/bash
 # Passive graymatter memory capture on Claude Code Stop event.
 # Installed by: llmwiki init --graymatter
@@ -63,12 +75,20 @@ PYEOF
 graymatter remember "$AGENT_ID" "session=$SESSION_ID
 $SUMMARY" --dir "$GRAYMATTER_DIR" --quiet 2>/dev/null
 
+# Run a non-blocking freshness check on files mentioned in this session.
+TOUCHED_FILES=$(echo "$SUMMARY" | grep -oE '[a-zA-Z0-9_./-]+\.[a-zA-Z]+' | grep '/' | tr '\n' ',' | sed 's/,$//')
+if [ -n "$TOUCHED_FILES" ] && command -v llmwiki >/dev/null 2>&1; then
+  llmwiki check --json --files "$TOUCHED_FILES" . 2>/dev/null | \
+    graymatter remember "$AGENT_ID" "llmwiki-staleness-check" --dir "$GRAYMATTER_DIR" --quiet 2>/dev/null || true
+fi
+
 exit 0
 `
 
 func NewInitCmd() *cobra.Command {
 	var customer, projectType string
 	var noGraymatter bool
+	var installHooks bool
 
 	c := &cobra.Command{
 		Use:   "init [path]",
@@ -106,6 +126,14 @@ func NewInitCmd() *cobra.Command {
 				}
 			}
 
+			if installHooks {
+				if err := installPreCommitHook(abs); err != nil {
+					fmt.Fprintf(os.Stderr, "warning: pre-commit hook: %v\n", err)
+				} else {
+					fmt.Printf("✓ pre-commit hook → %s/.git/hooks/pre-commit\n", abs)
+				}
+			}
+
 			return nil
 		},
 	}
@@ -113,7 +141,25 @@ func NewInitCmd() *cobra.Command {
 	c.Flags().StringVar(&customer, "customer", "", "customer name (e.g. acme)")
 	c.Flags().StringVar(&projectType, "type", "client", "project type: client|personal|oss")
 	c.Flags().BoolVar(&noGraymatter, "no-graymatter", false, "skip graymatter hook installation")
+	c.Flags().BoolVar(&installHooks, "hooks", false, "Install a Git pre-commit hook that checks for stale docs")
 	return c
+}
+
+func installPreCommitHook(projectDir string) error {
+	hooksDir := filepath.Join(projectDir, ".git", "hooks")
+	hookPath := filepath.Join(hooksDir, "pre-commit")
+
+	if _, err := os.Stat(hookPath); err == nil {
+		return nil // already exists — never overwrite
+	}
+
+	if err := os.MkdirAll(hooksDir, 0o755); err != nil { // #nosec G301
+		return fmt.Errorf("create hooks dir: %w", err)
+	}
+	if err := os.WriteFile(hookPath, []byte(preCommitHookScript), 0o755); err != nil { // #nosec G306
+		return fmt.Errorf("write pre-commit hook: %w", err)
+	}
+	return nil
 }
 
 func writeProjectConfig(projectDir, customer, projectType string) error {

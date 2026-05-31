@@ -15,7 +15,7 @@ go vet ./...                          # static analysis
 
 ## Architecture
 
-The binary is a single cobra CLI. `main.go` wires four subcommands from `internal/cmd/`. The core data flow is:
+The binary is a single cobra CLI. `main.go` wires the subcommands from `internal/cmd/`. The core data flow is:
 
 **ingest:** `scanner` → `ingestion` → `llm` → `wiki`
 
@@ -24,6 +24,9 @@ The binary is a single cobra CLI. `main.go` wires four subcommands from `interna
 3. `internal/llm` — three backends behind the `LLM` interface (`Generate(ctx, prompt) (string, error)`): `claude-code` (shells to `claude -p`), `claude-api` (Anthropic SDK), `ollama` (REST). `NewFakeLLM` is the test double used throughout.
 4. `internal/wiki` — reads/writes markdown files with YAML front matter. `WriteProjectEntry`/`WriteServiceEntry` own the file format. `UpsertIndex` maintains the master `_index.md`.
 5. `internal/config` — two-level config: global (`~/.llmwiki/config.yaml`) and per-project (`llmwiki.yaml` at project root). `Merge` applies project overrides on top of global defaults.
+6. `internal/tracker` — change tracking via git history. `cochange.go` clusters files that change together (union-find, 30% co-occurrence threshold) into `Area`s; `area.go` computes a content-addressed hash from `git ls-tree HEAD` output; `freshness.go` compares a stored hash against the current one. `GitRunner` is the injectable git-subprocess interface (real impl shells to `git`, `fakeGitRunner` in tests). At ingest time `ingestion.buildTracking` writes the resulting `wiki.TrackingMeta` into entry front matter; `cmd/check.go` re-checks it.
+
+**check:** `wiki` (read entries) → `tracker.CheckFreshness` → fresh/stale report. The `check` command powers three triggers: manual `llmwiki check`, the Git pre-commit hook (`init --hooks`), and the graymatter Stop hook.
 
 ## Wiki Storage Layout
 
@@ -49,9 +52,11 @@ type: client       # client | personal | oss
 customer: acme
 llm: ollama
 ollama_model: llama3.2
+output_mode: both        # central (default) | local | both
+local_docs_dir: docs/llmwiki
 ```
 
-Absent fields fall back to the global config. The `llm` field accepts `claude-code` (default, uses Claude Code subscription), `claude-api` (requires `ANTHROPIC_API_KEY`), or `ollama`.
+Absent fields fall back to the global config. The `llm` field accepts `claude-code` (default, uses Claude Code subscription), `claude-api` (requires `ANTHROPIC_API_KEY`), or `ollama`. `output_mode` controls where wiki files are written: `central` (`~/llmwiki/wiki/` only), `local` (`<project>/<local_docs_dir>/` only), or `both`.
 
 ## CLAUDE.md Injection
 

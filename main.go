@@ -42,6 +42,7 @@ func main() {
 		cmd.NewVersionCmd(),
 		cmd.NewUpdateCmd(),
 		cmd.NewClientCmd(),
+		cmd.NewCheckCmd(),
 	)
 
 	err := root.Execute()

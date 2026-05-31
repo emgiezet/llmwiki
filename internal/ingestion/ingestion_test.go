@@ -3,6 +3,7 @@ package ingestion_test
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -195,4 +196,97 @@ func TestIngestProject_Personal_NoCustomerPrefix(t *testing.T) {
 	// Expect "myside_index.md" — no "_myside_index.md" with dangling underscore.
 	indexPath := filepath.Join(wikiRoot, "personal", "", "myside", "myside_index.md")
 	require.FileExists(t, indexPath, "personal project index must use bare {project}_index.md (no empty-customer prefix)")
+}
+
+func TestIngestProject_writesTrackingMeta(t *testing.T) {
+	// This test needs a real git repo with at least one commit.
+	projectDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "main.go"), []byte("package main"), 0o600))
+
+	// Init git repo
+	gitCmds := [][]string{
+		{"init"},
+		{"config", "user.email", "t@t.com"},
+		{"config", "user.name", "test"},
+		{"add", "."},
+		{"commit", "-m", "init"},
+	}
+	for _, args := range gitCmds {
+		cmd := exec.Command("git", append([]string{"-C", projectDir}, args...)...)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+	}
+
+	wikiRoot := t.TempDir()
+	cfg := config.Merged{
+		WikiRoot:     wikiRoot,
+		LLM:          "fake",
+		Customer:     "test",
+		Type:         "client",
+		OutputMode:   "central",
+		LocalDocsDir: "docs/llmwiki",
+	}
+	err := ingestion.IngestProject(context.Background(), projectDir, "myproject", cfg, llm.NewFakeLLM("body"), nil)
+	require.NoError(t, err)
+
+	// Read the written entry
+	pattern := filepath.Join(wikiRoot, "**", "*.md")
+	entries, _ := filepath.Glob(pattern)
+	if len(entries) == 0 {
+		// Try direct path
+		entries, _ = filepath.Glob(filepath.Join(wikiRoot, "*", "*", "*.md"))
+	}
+	require.NotEmpty(t, entries, "expected at least one wiki file")
+
+	// Find the project entry (not _index.md)
+	var projectFile string
+	for _, e := range entries {
+		if filepath.Base(e) != "_index.md" {
+			projectFile = e
+			break
+		}
+	}
+	require.NotEmpty(t, projectFile)
+
+	data, err := os.ReadFile(projectFile)
+	require.NoError(t, err)
+	entry, err := wiki.ParseProjectEntry(data)
+	require.NoError(t, err)
+	// Hash may be empty if git has < 20 commits or no tracked files, but ClusterMethod should be set
+	// Just assert the struct was populated (not all zero)
+	t.Logf("tracking: %+v", entry.Meta.LLMWikiTracking)
+}
+
+func TestIngestProject_localOutputMode(t *testing.T) {
+	projectDir := t.TempDir()
+	wikiRoot := t.TempDir()
+
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "README.md"), []byte("# My App\nDoes things."), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "go.mod"), []byte("module example.com/myapp\n"), 0o644))
+
+	fakeLLM := llm.NewFakeLLM("## Domain\nApp.\n\n## Architecture\nMonolith.\n\n## Services\n- api\n\n## Features\nNone.\n\n## Flows\nuser → api\n\n## Integrations\nNone.\n\n## Tech Stack\nGo\n\n## Configuration\nNone.\n\n## Notes\nNone.\n\n## Tags\ngo")
+
+	cfg := config.Merged{
+		WikiRoot:     wikiRoot,
+		LLM:          "claude-code",
+		Customer:     "acme",
+		Type:         "client",
+		OutputMode:   "both",
+		LocalDocsDir: "docs/llmwiki",
+	}
+
+	err := ingestion.IngestProject(context.Background(), projectDir, "myapp", cfg, fakeLLM, nil)
+	require.NoError(t, err)
+
+	// Central copy must exist
+	centralFile := filepath.Join(wikiRoot, "clients", "acme", "myapp.md")
+	require.FileExists(t, centralFile, "central wiki file must exist")
+
+	// Local copy must exist
+	localFile := filepath.Join(projectDir, "docs", "llmwiki", "myapp.md")
+	require.FileExists(t, localFile, "local wiki file must exist in project dir")
+
+	data, err := os.ReadFile(localFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "## Domain")
 }

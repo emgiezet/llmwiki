@@ -80,6 +80,15 @@ func Merge(g GlobalConfig, c ClientConfig, p ProjectConfig) Merged {
 	// Cost: field-by-field override, flag if any field came from client.
 	m.Cost, m.Source.CostFromClient = mergeCost(c.Cost, p.Cost)
 
+	m.OutputMode = "central"
+	if p.OutputMode != "" {
+		m.OutputMode = p.OutputMode
+	}
+	m.LocalDocsDir = "docs/llmwiki"
+	if p.LocalDocsDir != "" {
+		m.LocalDocsDir = p.LocalDocsDir
+	}
+
 	return m
 }
 

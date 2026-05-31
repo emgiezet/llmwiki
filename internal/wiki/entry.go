@@ -10,32 +10,44 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// TrackingMeta records which source files a wiki entry describes and their
+// git content state at the time the entry was last written.
+type TrackingMeta struct {
+	Area          string   `yaml:"area,omitempty"`
+	Files         []string `yaml:"files,omitempty"`
+	Hash          string   `yaml:"hash,omitempty"`
+	ClusterMethod string   `yaml:"cluster_method,omitempty"` // "git-cochange" | "scanner-heuristic"
+	UpdatedAt     string   `yaml:"updated_at,omitempty"`     // YYYY-MM-DD
+}
+
 // ProjectMeta is YAML front matter for a project _index.md.
 type ProjectMeta struct {
-	Name         string            `yaml:"name"`
-	Customer     string            `yaml:"customer"`
-	Type         string            `yaml:"type"`
-	Status       string            `yaml:"status"`
-	Path         string            `yaml:"path"`
-	LLM          string            `yaml:"llm"`
-	OllamaModel  string            `yaml:"ollama_model,omitempty"`
-	Tags         []string          `yaml:"tags,omitempty"`
-	Links        map[string]string `yaml:"links,omitempty"` // v1.3.0: external links
-	LastIngested time.Time         `yaml:"last_ingested"`
+	Name           string            `yaml:"name"`
+	Customer       string            `yaml:"customer"`
+	Type           string            `yaml:"type"`
+	Status         string            `yaml:"status"`
+	Path           string            `yaml:"path"`
+	LLM            string            `yaml:"llm"`
+	OllamaModel    string            `yaml:"ollama_model,omitempty"`
+	Tags           []string          `yaml:"tags,omitempty"`
+	Links          map[string]string `yaml:"links,omitempty"` // v1.3.0: external links
+	LastIngested   time.Time         `yaml:"last_ingested"`
+	LLMWikiTracking TrackingMeta     `yaml:"llmwiki_tracking,omitempty"`
 }
 
 // ServiceMeta is YAML front matter for a per-service file.
 type ServiceMeta struct {
-	Service      string            `yaml:"service"`
-	Project      string            `yaml:"project"`
-	Customer     string            `yaml:"customer"`
-	Language     string            `yaml:"language,omitempty"`
-	Path         string            `yaml:"path,omitempty"`
-	Exposes      []string          `yaml:"exposes,omitempty"`
-	DependsOn    []string          `yaml:"depends_on,omitempty"`
-	Tags         []string          `yaml:"tags,omitempty"`
-	Links        map[string]string `yaml:"links,omitempty"` // v1.3.0
-	LastIngested time.Time         `yaml:"last_ingested"`
+	Service         string            `yaml:"service"`
+	Project         string            `yaml:"project"`
+	Customer        string            `yaml:"customer"`
+	Language        string            `yaml:"language,omitempty"`
+	Path            string            `yaml:"path,omitempty"`
+	Exposes         []string          `yaml:"exposes,omitempty"`
+	DependsOn       []string          `yaml:"depends_on,omitempty"`
+	Tags            []string          `yaml:"tags,omitempty"`
+	Links           map[string]string `yaml:"links,omitempty"` // v1.3.0
+	LastIngested    time.Time         `yaml:"last_ingested"`
+	LLMWikiTracking TrackingMeta      `yaml:"llmwiki_tracking,omitempty"`
 }
 
 // ProjectEntry holds parsed project wiki file.

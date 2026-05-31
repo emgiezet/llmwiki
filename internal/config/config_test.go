@@ -160,3 +160,19 @@ func TestLoadGlobalConfig_NoWarningWithoutAPIKey(t *testing.T) {
 	require.NoError(t, loadErr)
 	assert.NotContains(t, buf.String(), "anthropic_api_key")
 }
+
+func TestProjectConfig_outputMode(t *testing.T) {
+	dir := t.TempDir()
+	content := "output_mode: local\nlocal_docs_dir: docs/wiki\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "llmwiki.yaml"), []byte(content), 0o600))
+	cfg, err := config.LoadProjectConfig(dir)
+	require.NoError(t, err)
+	assert.Equal(t, "local", cfg.OutputMode)
+	assert.Equal(t, "docs/wiki", cfg.LocalDocsDir)
+}
+
+func TestMerge_outputModeDefault(t *testing.T) {
+	merged := config.Merge(config.GlobalConfig{}, config.ClientConfig{}, config.ProjectConfig{})
+	assert.Equal(t, "central", merged.OutputMode)
+	assert.Equal(t, "docs/llmwiki", merged.LocalDocsDir)
+}

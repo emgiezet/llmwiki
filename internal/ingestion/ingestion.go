@@ -11,6 +11,7 @@ import (
 	"github.com/emgiezet/llmwiki/internal/llm"
 	"github.com/emgiezet/llmwiki/internal/memory"
 	"github.com/emgiezet/llmwiki/internal/scanner"
+	"github.com/emgiezet/llmwiki/internal/tracker"
 	"github.com/emgiezet/llmwiki/internal/wiki"
 )
 
@@ -83,20 +84,27 @@ func ingestSingleService(ctx context.Context, projectDir, projectName string, cf
 	tags, body := ParseTagsFromBody(body)
 
 	meta := wiki.ProjectMeta{
-		Name:         projectName,
-		Customer:     cfg.Customer,
-		Type:         cfg.Type,
-		Status:       statusString(cfg.Status),
-		Path:         projectDir,
-		LLM:          cfg.LLM,
-		OllamaModel:  cfg.OllamaModel,
-		Tags:         tags,
-		Links:        map[string]string(cfg.Links),
-		LastIngested: time.Now().UTC(),
+		Name:            projectName,
+		Customer:        cfg.Customer,
+		Type:            cfg.Type,
+		Status:          statusString(cfg.Status),
+		Path:            projectDir,
+		LLM:             cfg.LLM,
+		OllamaModel:     cfg.OllamaModel,
+		Tags:            tags,
+		Links:           map[string]string(cfg.Links),
+		LastIngested:    time.Now().UTC(),
+		LLMWikiTracking: buildTracking(projectDir, nil),
 	}
 	body += renderMetadata(cfg)
 	if err := wiki.WriteProjectEntry(wikiPath, meta, "\n"+body+"\n"); err != nil {
 		return err
+	}
+	if cfg.OutputMode == "local" || cfg.OutputMode == "both" {
+		localPath := filepath.Join(projectDir, cfg.LocalDocsDir, projectName+".md")
+		if werr := wiki.WriteProjectEntry(localPath, meta, "\n"+body+"\n"); werr != nil {
+			return werr
+		}
 	}
 
 	// Store facts from this ingestion.
@@ -134,17 +142,24 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 		tags, body := ParseTagsFromBody(body)
 
 		meta := wiki.ServiceMeta{
-			Service:      svc.Name,
-			Project:      projectName,
-			Customer:     cfg.Customer,
-			Path:         svc.Path,
-			Tags:         tags,
-			Links:        map[string]string(cfg.Links),
-			LastIngested: time.Now().UTC(),
+			Service:         svc.Name,
+			Project:         projectName,
+			Customer:        cfg.Customer,
+			Path:            svc.Path,
+			Tags:            tags,
+			Links:           map[string]string(cfg.Links),
+			LastIngested:    time.Now().UTC(),
+			LLMWikiTracking: buildTracking(svc.Path, nil),
 		}
 		body += renderMetadata(cfg)
 		if err := wiki.WriteServiceEntry(wikiPath, meta, "\n"+body+"\n"); err != nil {
 			return err
+		}
+		if cfg.OutputMode == "local" || cfg.OutputMode == "both" {
+			localPath := filepath.Join(projectDir, cfg.LocalDocsDir, svc.Name+".md")
+			if werr := wiki.WriteServiceEntry(localPath, meta, "\n"+body+"\n"); werr != nil {
+				return werr
+			}
 		}
 
 		// Store facts from this service ingestion.
@@ -250,4 +265,38 @@ func loadExistingServiceBody(path string) string {
 		return ""
 	}
 	return entry.Body
+}
+
+// buildTracking runs the co-change clusterer for projectDir and returns a
+// TrackingMeta for the largest detected area.
+// On any error (git not available, too few commits, etc.) returns zero TrackingMeta
+// so the caller continues without tracking.
+func buildTracking(projectDir string, scanFiles []string) wiki.TrackingMeta {
+	runner, err := tracker.NewGitRunner()
+	if err != nil {
+		return wiki.TrackingMeta{}
+	}
+	clusterer := tracker.NewClusterer(runner)
+	areas, err := clusterer.Cluster(projectDir, scanFiles)
+	if err != nil || len(areas) == 0 {
+		return wiki.TrackingMeta{}
+	}
+	// Pick the largest area (most files) as representative for this entry.
+	best := areas[0]
+	for _, a := range areas[1:] {
+		if len(a.Files) > len(best.Files) {
+			best = a
+		}
+	}
+	hash, err := tracker.ComputeHash(runner, projectDir, best.Files)
+	if err != nil {
+		return wiki.TrackingMeta{}
+	}
+	return wiki.TrackingMeta{
+		Area:          best.Name,
+		Files:         best.Files,
+		Hash:          hash,
+		ClusterMethod: best.ClusterMethod,
+		UpdatedAt:     time.Now().UTC().Format("2006-01-02"),
+	}
 }

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDetectShell(t *testing.T) {
@@ -163,5 +165,18 @@ func TestRemoveMarkerBlock_MissingFile(t *testing.T) {
 	}
 	if removed {
 		t.Error("missing file should not report removed=true")
+	}
+}
+
+func TestExtractTouchedFiles_findsSourcePaths(t *testing.T) {
+	summary := `[assistant]: edited internal/auth/handler.go and cmd/main.go
+[user]: looks good, also check internal/billing/invoice.go`
+	files := extractTouchedFiles(summary)
+	assert.Contains(t, files, "internal/auth/handler.go")
+	assert.Contains(t, files, "cmd/main.go")
+	assert.Contains(t, files, "internal/billing/invoice.go")
+	// should not contain bare words
+	for _, f := range files {
+		assert.Contains(t, f, "/", "every result must contain a slash")
 	}
 }

@@ -170,3 +170,13 @@ func TestUpsertIndex_UpdatesExisting(t *testing.T) {
 	assert.Len(t, entries, 1)
 	assert.Equal(t, "archived", entries[0].Status)
 }
+
+func TestParseProjectEntry_withTracking(t *testing.T) {
+	content := "---\nname: myproject\ncustomer: acme\ntype: client\nlast_ingested: 2026-01-01T00:00:00Z\nllmwiki_tracking:\n  area: internal/auth\n  files:\n    - internal/auth/handler.go\n  hash: abc123456789abcd\n  cluster_method: git-cochange\n  updated_at: \"2026-05-25\"\n---\n# Body\n"
+	entry, err := wiki.ParseProjectEntry([]byte(content))
+	require.NoError(t, err)
+	assert.Equal(t, "internal/auth", entry.Meta.LLMWikiTracking.Area)
+	assert.Equal(t, "abc123456789abcd", entry.Meta.LLMWikiTracking.Hash)
+	assert.Equal(t, "git-cochange", entry.Meta.LLMWikiTracking.ClusterMethod)
+	assert.Equal(t, []string{"internal/auth/handler.go"}, entry.Meta.LLMWikiTracking.Files)
+}

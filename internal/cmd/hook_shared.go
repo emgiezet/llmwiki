@@ -157,6 +157,33 @@ func removeMarkerBlock(target, begin, end string) (bool, error) {
 	return true, nil
 }
 
+// extractTouchedFiles scans a session summary for words that look like
+// source file paths (contain "/" and have a known source extension).
+func extractTouchedFiles(summary string) []string {
+	seen := map[string]bool{}
+	var files []string
+	for _, word := range strings.Fields(summary) {
+		word = strings.Trim(word, `"',;:()[]`)
+		if looksLikeSourceFile(word) && !seen[word] {
+			seen[word] = true
+			files = append(files, word)
+		}
+	}
+	return files
+}
+
+var sourceExts = map[string]bool{
+	".go": true, ".ts": true, ".js": true, ".py": true, ".java": true,
+	".rb": true, ".rs": true, ".cs": true, ".cpp": true, ".c": true,
+	".proto": true, ".sql": true, ".yaml": true, ".yml": true, ".json": true,
+	".toml": true, ".sh": true, ".md": true,
+}
+
+func looksLikeSourceFile(s string) bool {
+	ext := filepath.Ext(s)
+	return sourceExts[ext] && strings.Contains(s, "/")
+}
+
 // shellPostInstallHint returns the command a user should run after the
 // installer writes to an rc file, so the new function / source line takes
 // effect in the current shell.

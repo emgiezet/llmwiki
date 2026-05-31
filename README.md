@@ -233,6 +233,58 @@ Your AI assistant starts every session with Domain, Architecture, Services, and 
 
 Re-running `ingest` doesn't regenerate from scratch — the LLM sees the previous wiki entry and refines it. Knowledge compounds. Details get richer with each pass.
 
+### Change tracking & freshness
+
+Documentation drifts the moment code changes. `llmwiki` tracks which source files each wiki entry describes and detects when those files have moved on without the docs.
+
+At ingest time, each wiki entry's front matter gains an `llmwiki_tracking` block:
+
+```yaml
+llmwiki_tracking:
+  area: internal/auth
+  files:
+    - internal/auth/handler.go
+    - internal/auth/middleware.go
+  hash: a3f9bc1d2e4f6a8b
+  cluster_method: git-cochange
+  updated_at: "2026-05-25"
+```
+
+Areas are discovered automatically from **git co-change history** — files that change together in the same commits get grouped into one area (union-find clustering, 30% co-occurrence threshold). On projects with fewer than 20 commits, llmwiki falls back to top-level directory heuristics. The `hash` is a SHA256 over `git ls-tree HEAD` output for each file — content-addressed, so it shifts only when tracked files actually change, not on file-timestamp churn.
+
+Run the check anytime:
+
+```bash
+llmwiki check                       # report fresh/stale entries for the current project
+llmwiki check --json                # machine-readable output
+llmwiki check --exit-code           # exit 1 if anything is stale (for CI)
+llmwiki check --files a.go,b.go     # restrict to areas containing these files
+```
+
+```
+✓ clients/acme/billing-api.md   fresh   area: internal/auth   updated: 2026-05-25
+✗ clients/acme/billing-api.md   STALE   area: internal/billing
+```
+
+Three triggers can surface staleness:
+
+- **Manual / agent** — call `llmwiki check` directly, or register it as a slash command so an AI agent runs it before handoff.
+- **Git pre-commit hook** — `llmwiki init --hooks` installs a `.git/hooks/pre-commit` that blocks the commit (`--exit-code`) when staged files belong to a stale area. Override a deliberate deferral with `git commit --no-verify`. An existing pre-commit hook is never overwritten.
+- **AI session Stop hook** — the graymatter Stop hook (see below) runs a non-blocking `llmwiki check` on files touched during the session and records the result in memory.
+
+### Docs alongside code (per-repo output mode)
+
+By default wiki files live in the central `~/llmwiki/wiki/` tree. Set `output_mode` in `llmwiki.yaml` to also (or only) write them into the project repository, so a single PR diff shows both the code change and the doc change:
+
+```yaml
+output_mode: both              # central (default) | local | both
+local_docs_dir: docs/llmwiki   # where local docs land (default)
+```
+
+- `central` — existing behaviour, wiki only in `~/llmwiki/wiki/`
+- `local` — wiki only inside `<project>/<local_docs_dir>/`
+- `both` — written to both locations
+
 ### Three LLM backends
 
 | Backend | Config | Best for |
@@ -256,7 +308,10 @@ Generates a client-level `_index.md` with executive summary, C4 diagram, archite
 | Command | Description |
 |---------|-------------|
 | `init [path]` | Create `llmwiki.yaml` and optionally wire up graymatter hooks |
+| `init [path] --hooks` | Also install a Git pre-commit hook that checks for stale docs |
 | `ingest <path>` | Scan a project and generate/update wiki entries |
+| `check [path]` | Report which wiki entries are stale relative to source code |
+| `check --json / --exit-code / --files` | Machine output / CI exit code / restrict to given files |
 | `ingest <path> --no-memory` | Ingest without memory recall/storage |
 | `absorb <path>` | Extract session facts into memory (near-zero token cost) |
 | `absorb <path> --note "..."` | Absorb with an explicit session note |
@@ -319,7 +374,7 @@ Ask NanoClaw questions about any of your tracked projects and it draws on the wi
 
 `llmwiki init` can wire up [graymatter](https://github.com/gdgvda/graymatter) — a local vector memory store — as a passive layer on top of Claude Code sessions.
 
-After initialisation each Claude Code session automatically saves a compact summary to `.graymatter/` when the session ends (via the `Stop` hook). The graymatter MCP server exposes those memories back to Claude Code, so context from past sessions is available without manual effort.
+After initialisation each Claude Code session automatically saves a compact summary to `.graymatter/` when the session ends (via the `Stop` hook). The graymatter MCP server exposes those memories back to Claude Code, so context from past sessions is available without manual effort. The same Stop hook also runs a non-blocking `llmwiki check` on the files touched during the session and stores any staleness signal in memory, so drifting docs surface without manual effort.
 
 ```
 project/
@@ -365,6 +420,10 @@ customer: acme
 status: discovery           # production | poc | discovery — drives section visibility
 llm: codex                  # claude-code | claude-api | ollama | gemini-cli | codex | opencode | pi
 ollama_model: llama3.2
+
+# Where generated wiki files land (see "Docs alongside code" above).
+output_mode: central        # central (default) | local | both
+local_docs_dir: docs/llmwiki
 
 # External systems for MCP-connected AI agents to crawl and for humans to click.
 # Any key is allowed; well-known ones (github/gitlab/jira/confluence/slack/…)

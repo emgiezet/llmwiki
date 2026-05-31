@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/emgiezet/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/safeio"
 	"github.com/emgiezet/llmwiki/internal/tracker"
 	"github.com/emgiezet/llmwiki/internal/wiki"
 	"github.com/spf13/cobra"
@@ -114,9 +115,9 @@ func NewCheckCmd() *cobra.Command {
 					return nil
 				}
 
-				data, readErr := os.ReadFile(path)
+				data, readErr := safeio.ReadRegularFile(path)
 				if readErr != nil {
-					return nil // skip unreadable files
+					return nil // skip unreadable/non-regular files
 				}
 
 				// Relative file path for display.

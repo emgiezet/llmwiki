@@ -235,7 +235,7 @@ Re-running `ingest` doesn't regenerate from scratch — the LLM sees the previou
 
 ### Change tracking & freshness
 
-Documentation drifts the moment code changes. `llmwiki` tracks which source files each wiki entry describes and detects when those files have moved on without the docs.
+Documentation drifts the moment code changes. `llmwiki` tracks which source files each wiki entry describes, and tells you when those files have changed but the docs haven't.
 
 At ingest time, each wiki entry's front matter gains an `llmwiki_tracking` block:
 
@@ -250,7 +250,7 @@ llmwiki_tracking:
   updated_at: "2026-05-25"
 ```
 
-Areas are discovered automatically from **git co-change history** — files that change together in the same commits get grouped into one area (union-find clustering, 30% co-occurrence threshold). On projects with fewer than 20 commits, llmwiki falls back to top-level directory heuristics. The `hash` is a SHA256 over `git ls-tree HEAD` output for each file — content-addressed, so it shifts only when tracked files actually change, not on file-timestamp churn.
+llmwiki figures out areas from git co-change history: files that keep landing in the same commits get grouped together (union-find clustering, 30% co-occurrence threshold). On projects with fewer than 20 commits it falls back to top-level directory heuristics. The `hash` is a SHA256 over `git ls-tree HEAD` output for each tracked file, so it changes when file contents change. Timestamps don't enter into it.
 
 Run the check anytime:
 
@@ -266,11 +266,11 @@ llmwiki check --files a.go,b.go     # restrict to areas containing these files
 ✗ clients/acme/billing-api.md   STALE   area: internal/billing
 ```
 
-Three triggers can surface staleness:
+Staleness shows up through three paths:
 
-- **Manual / agent** — call `llmwiki check` directly, or register it as a slash command so an AI agent runs it before handoff.
-- **Git pre-commit hook** — `llmwiki init --hooks` installs a `.git/hooks/pre-commit` that blocks the commit (`--exit-code`) when staged files belong to a stale area. Override a deliberate deferral with `git commit --no-verify`. An existing pre-commit hook is never overwritten.
-- **AI session Stop hook** — the graymatter Stop hook (see below) runs a non-blocking `llmwiki check` on files touched during the session and records the result in memory.
+- **Manual / agent** — run `llmwiki check` yourself, or register it as a slash command so an AI agent runs it before handing work back.
+- **Git pre-commit hook** — `llmwiki init --hooks` installs a `.git/hooks/pre-commit` that blocks the commit (`--exit-code`) when staged files belong to a stale area. If the doc update is deliberately deferred, `git commit --no-verify` gets you through. An existing pre-commit hook is left alone.
+- **AI session Stop hook** — the graymatter Stop hook (see below) runs a non-blocking `llmwiki check` on the files touched during the session and records the result in memory.
 
 ### Docs alongside code (per-repo output mode)
 
@@ -374,7 +374,7 @@ Ask NanoClaw questions about any of your tracked projects and it draws on the wi
 
 `llmwiki init` can wire up [graymatter](https://github.com/gdgvda/graymatter) — a local vector memory store — as a passive layer on top of Claude Code sessions.
 
-After initialisation each Claude Code session automatically saves a compact summary to `.graymatter/` when the session ends (via the `Stop` hook). The graymatter MCP server exposes those memories back to Claude Code, so context from past sessions is available without manual effort. The same Stop hook also runs a non-blocking `llmwiki check` on the files touched during the session and stores any staleness signal in memory, so drifting docs surface without manual effort.
+After initialisation each Claude Code session automatically saves a compact summary to `.graymatter/` when the session ends (via the `Stop` hook). The graymatter MCP server exposes those memories back to Claude Code, so context from past sessions is available without manual effort. The same Stop hook also runs a non-blocking `llmwiki check` on the files touched during the session and stores any staleness signal in memory, so you find out about drifting docs without going looking for them.
 
 ```
 project/

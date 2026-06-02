@@ -51,3 +51,41 @@ func TestNote_PrintsLine(t *testing.T) {
 		t.Errorf("got %q", out.String())
 	}
 }
+
+func TestChoice_SelectByNumber(t *testing.T) {
+	p, _ := newTestPrompter("2\n")
+	opts := []Option{{Value: "a", Label: "Apple"}, {Value: "b", Label: "Banana"}}
+	if got := p.Choice("Pick", opts, "a"); got != "b" {
+		t.Errorf("got %q, want %q", got, "b")
+	}
+}
+
+func TestChoice_DefaultOnEmpty(t *testing.T) {
+	p, out := newTestPrompter("\n")
+	opts := []Option{{Value: "a", Label: "Apple"}, {Value: "b", Label: "Banana"}}
+	if got := p.Choice("Pick", opts, "b"); got != "b" {
+		t.Errorf("got %q, want default %q", got, "b")
+	}
+	if !strings.Contains(out.String(), "Choice [2]:") {
+		t.Errorf("default index not shown; got %q", out.String())
+	}
+}
+
+func TestChoice_InvalidThenValid(t *testing.T) {
+	p, out := newTestPrompter("9\nx\n1\n")
+	opts := []Option{{Value: "a", Label: "Apple"}, {Value: "b", Label: "Banana"}}
+	if got := p.Choice("Pick", opts, "a"); got != "a" {
+		t.Errorf("got %q, want %q", got, "a")
+	}
+	if strings.Count(out.String(), "! invalid choice") != 2 {
+		t.Errorf("expected two error lines; got %q", out.String())
+	}
+}
+
+func TestChoice_DefaultOnEOF(t *testing.T) {
+	p, _ := newTestPrompter("")
+	opts := []Option{{Value: "a", Label: "Apple"}}
+	if got := p.Choice("Pick", opts, "a"); got != "a" {
+		t.Errorf("got %q, want default %q on EOF", got, "a")
+	}
+}

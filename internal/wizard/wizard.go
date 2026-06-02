@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -47,6 +48,43 @@ func (p *Prompter) readLine() string {
 // Note prints an informational line (no input read).
 func (p *Prompter) Note(format string, args ...any) {
 	fmt.Fprintf(p.out, format+"\n", args...)
+}
+
+// Choice prints a numbered list of opts and returns the chosen option's Value.
+// The option whose Value == def is marked and selected on empty input. Invalid
+// numbers re-prompt; on EOF the default is returned to avoid an infinite loop.
+func (p *Prompter) Choice(label string, opts []Option, def string) string {
+	for {
+		fmt.Fprintln(p.out, label)
+		defIdx := 0
+		for i, o := range opts {
+			marker := " "
+			if o.Value == def {
+				marker = "*"
+				defIdx = i + 1
+			}
+			fmt.Fprintf(p.out, "  %s %d) %s\n", marker, i+1, o.Label)
+		}
+		if defIdx > 0 {
+			fmt.Fprintf(p.out, "Choice [%d]: ", defIdx)
+		} else {
+			fmt.Fprint(p.out, "Choice: ")
+		}
+
+		line := p.readLine()
+		if line == "" {
+			return def
+		}
+		n, err := strconv.Atoi(line)
+		if err != nil || n < 1 || n > len(opts) {
+			fmt.Fprintf(p.out, "  ! invalid choice %q\n", line)
+			if p.eof {
+				return def
+			}
+			continue
+		}
+		return opts[n-1].Value
+	}
 }
 
 // Text asks a free-text question. Empty input (or EOF) returns def.

@@ -54,3 +54,18 @@ func TestSaveGlobalConfig_PreservesUnmanagedFields(t *testing.T) {
 	assert.Equal(t, "ollama", reloaded.LLM)
 	assert.Equal(t, "/opt/claude", reloaded.ClaudeBinaryPath)
 }
+
+func TestSetupCmd_NoTTY_Errors(t *testing.T) {
+	orig := isInteractive
+	isInteractive = func() bool { return false }
+	defer func() { isInteractive = orig }()
+
+	cmd := NewSetupCmd()
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "interactive terminal")
+}

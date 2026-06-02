@@ -177,6 +177,47 @@ The notice is suppressed in CI, non-TTY output, dev builds, and when `LLMWIKI_NO
 
 ## Quick Start
 
+### First-time setup (interactive)
+
+Run `llmwiki setup` once to configure the global `~/.llmwiki/config.yaml` — it walks you through the LLM backend, wiki root, memory, and shows which document extractors are available:
+
+```text
+➜  llmwiki setup
+Detected tools:
+  claude: ✓ found
+  ollama: ✓ found
+LLM backend?
+  * 1) claude-code (Claude Code subscription)
+    2) claude-api (uses ANTHROPIC_API_KEY)
+    3) ollama (local models)
+Choice [1]: 1
+Wiki root [/home/mgz/llmwiki/wiki]:
+Enable memory (graymatter)? [Y/n]: y
+Memory mode?
+  * 1) project (per-project store, default)
+    2) global (single shared store)
+Choice [1]:
+Document extractors (detection only — edit `extractors` to change):
+  .docx  pandoc [✓ found]
+  .epub  pandoc [✓ found]
+  .odt   pandoc [✓ found]
+  .pdf   pdftotext [✓ found]
+
+Summary:
+  llm:            claude-code
+  wiki_root:      /home/mgz/llmwiki/wiki
+  memory_enabled: true
+  memory_mode:    project
+Save to ~/.llmwiki/config.yaml? [Y/n]: y
+✓ /home/mgz/.llmwiki/config.yaml
+```
+
+Running `llmwiki init` with **no flags** in a terminal launches the equivalent per-project wizard. Passing any flag (or running in CI / non-TTY) keeps the non-interactive behaviour shown below. Both wizards load an existing config as defaults, so they double as editors.
+
+Tab completion is built in — enable it for your shell with `source <(llmwiki completion zsh)` (or `bash`/`fish`), then `llmwiki s<Tab>` suggests `setup`.
+
+### Typical workflow
+
 ```bash
 # Set up a project (creates llmwiki.yaml + optional graymatter memory layer)
 llmwiki init ~/workspace/my-project --customer acme --type client

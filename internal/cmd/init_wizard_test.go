@@ -121,3 +121,50 @@ func TestRunInitWizard_PersonalNoCustomer(t *testing.T) {
 	assert.Equal(t, "default", opts.preset)
 	assert.Equal(t, "central", opts.outputMode)
 }
+
+func TestAnyInitFlagChanged(t *testing.T) {
+	cmd := NewInitCmd()
+	assert.False(t, anyInitFlagChanged(cmd))
+
+	require.NoError(t, cmd.Flags().Set("customer", "acme"))
+	assert.True(t, anyInitFlagChanged(cmd))
+}
+
+func TestInitCmd_NonInteractiveWithFlag_WritesConfig(t *testing.T) {
+	orig := isInteractive
+	isInteractive = func() bool { return false }
+	defer func() { isInteractive = orig }()
+
+	dir := t.TempDir()
+	cmd := NewInitCmd()
+	cmd.SetArgs([]string{"--type", "personal", "--no-graymatter", dir})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	require.NoError(t, cmd.Execute())
+
+	cfg, err := config.LoadProjectConfig(dir)
+	require.NoError(t, err)
+	assert.Equal(t, "personal", cfg.Type)
+}
+
+func TestInitCmd_InteractiveNoFlags_RunsWizard(t *testing.T) {
+	origI := isInteractive
+	isInteractive = func() bool { return true }
+	defer func() { isInteractive = origI }()
+	origG := graymatterDetected
+	graymatterDetected = func() bool { return false }
+	defer func() { graymatterDetected = origG }()
+
+	dir := t.TempDir()
+	cmd := NewInitCmd()
+	cmd.SetArgs([]string{dir})
+	// type=personal(2), preset=Enter, output=Enter(central), preCommit=n, save=y
+	cmd.SetIn(strings.NewReader("2\n\n\nn\ny\n"))
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	require.NoError(t, cmd.Execute())
+
+	cfg, err := config.LoadProjectConfig(dir)
+	require.NoError(t, err)
+	assert.Equal(t, "personal", cfg.Type)
+}

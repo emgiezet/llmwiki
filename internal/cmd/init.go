@@ -88,6 +88,18 @@ fi
 exit 0
 `
 
+// anyInitFlagChanged reports whether the user explicitly set any init flag.
+// When true (or when stdin is not a TTY) init keeps its non-interactive
+// behaviour instead of launching the wizard.
+func anyInitFlagChanged(cmd *cobra.Command) bool {
+	for _, name := range []string{"customer", "type", "hooks", "no-graymatter"} {
+		if cmd.Flags().Changed(name) {
+			return true
+		}
+	}
+	return false
+}
+
 func NewInitCmd() *cobra.Command {
 	var customer, projectType string
 	var noGraymatter bool
@@ -107,11 +119,28 @@ func NewInitCmd() *cobra.Command {
 				return err
 			}
 
+			// Interactive wizard only when no flags were set AND stdin is a TTY.
+			if !anyInitFlagChanged(cmd) && isInteractive() {
+				existing, _ := config.LoadProjectConfig(abs) // zero value if none
+				p := wizard.New(cmd.InOrStdin(), cmd.OutOrStdout())
+				opts, inst, save := runInitWizard(p, existing)
+				if !save {
+					fmt.Fprintln(cmd.OutOrStdout(), "no changes made")
+					return nil
+				}
+				if err := writeProjectConfig(abs, opts, true); err != nil {
+					return err
+				}
+				fmt.Printf("✓ %s\n", filepath.Join(abs, "llmwiki.yaml"))
+				installIntegrations(abs, inst.graymatter, inst.preCommit)
+				return nil
+			}
+
+			// Non-interactive / flag-driven path (unchanged behaviour).
 			if err := writeProjectConfig(abs, initOptions{customer: customer, projectType: projectType}, false); err != nil {
 				return err
 			}
 			fmt.Printf("✓ %s\n", filepath.Join(abs, "llmwiki.yaml"))
-
 			installIntegrations(abs, !noGraymatter, installHooks)
 			return nil
 		},

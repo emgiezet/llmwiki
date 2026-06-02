@@ -12,11 +12,11 @@ import (
 
 func TestMerge_LLMPrecedence_ProjectWinsOverClientOverGlobal(t *testing.T) {
 	cases := []struct {
-		name         string
-		global       string
-		client       string
-		project      string
-		wantLLM      string
+		name    string
+		global  string
+		client  string
+		project string
+		wantLLM string
 	}{
 		{"all empty — leaves LLM empty", "", "", "", ""},
 		{"global only", "claude-code", "", "", "claude-code"},
@@ -33,6 +33,35 @@ func TestMerge_LLMPrecedence_ProjectWinsOverClientOverGlobal(t *testing.T) {
 			got := config.Merge(g, c, p)
 			assert.Equal(t, tc.wantLLM, got.LLM)
 		})
+	}
+}
+
+func TestMerge_Extractors_ProjectOverridesGlobalPerKey(t *testing.T) {
+	g := config.GlobalConfig{Extractors: map[string]string{
+		".pdf":  "pdftotext {{input}} -",
+		".docx": "pandoc {{input}} -t plain",
+	}}
+	p := config.ProjectConfig{Extractors: map[string]string{
+		".docx": "custom-docx {{input}}",     // override
+		".rtf":  "pandoc {{input}} -t plain", // add
+	}}
+
+	got := config.Merge(g, config.ClientConfig{}, p)
+
+	assert.Equal(t, "pdftotext {{input}} -", got.Extractors[".pdf"], "untouched global key survives")
+	assert.Equal(t, "custom-docx {{input}}", got.Extractors[".docx"], "project overrides global")
+	assert.Equal(t, "pandoc {{input}} -t plain", got.Extractors[".rtf"], "project-only key added")
+}
+
+func TestMerge_Extractors_NilWhenUnset(t *testing.T) {
+	got := config.Merge(config.GlobalConfig{}, config.ClientConfig{}, config.ProjectConfig{})
+	assert.Nil(t, got.Extractors)
+}
+
+func TestDefaultExtractors_CoversTargetFormats(t *testing.T) {
+	d := config.DefaultExtractors()
+	for _, ext := range []string{".pdf", ".docx", ".odt", ".epub"} {
+		assert.NotEmpty(t, d[ext], "default extractor for %s", ext)
 	}
 }
 

@@ -42,6 +42,14 @@ type GlobalConfig struct {
 	CodexBinaryPath    string `yaml:"codex_binary_path"`
 	OpencodeBinaryPath string `yaml:"opencode_binary_path"`
 	PiBinaryPath       string `yaml:"pi_binary_path"`
+	// Extractors maps a document file extension (".pdf", ".docx", …) to the
+	// command template used to extract its plain text, e.g.
+	// "pdftotext {{input}} -". The {{input}} placeholder is replaced with the
+	// file path; the command must write the text to stdout and is run WITHOUT a
+	// shell. These are machine/OS-specific (defaults target macOS + Linux),
+	// which is why they live in the global config rather than the org-wide
+	// client config. See LoadGlobalConfig for the built-in defaults.
+	Extractors map[string]string `yaml:"extractors,omitempty"`
 }
 
 type ProjectConfig struct {
@@ -63,6 +71,10 @@ type ProjectConfig struct {
 	// v2.x change tracking output mode.
 	OutputMode   string `yaml:"output_mode,omitempty"`    // local | central | both
 	LocalDocsDir string `yaml:"local_docs_dir,omitempty"` // default: docs/llmwiki
+	// Extractors overrides the global document-extraction commands per
+	// extension. Merged key-by-key on top of the global defaults — set only
+	// the extensions you want to change.
+	Extractors map[string]string `yaml:"extractors,omitempty"`
 }
 
 // ProjectStatus classifies where a project sits in its lifecycle. It
@@ -140,7 +152,10 @@ type Merged struct {
 	CodexBinaryPath    string
 	OpencodeBinaryPath string
 	PiBinaryPath       string
-	Extraction         ExtractionConfig
+	// Extractors maps a document extension to its text-extraction command
+	// template (global defaults + per-project overrides, merged key-by-key).
+	Extractors map[string]string
+	Extraction ExtractionConfig
 	// v1.3.0 richer project metadata, three-way merged.
 	Status ProjectStatus
 	Links  LinksConfig
@@ -173,11 +188,27 @@ func homeDir() string {
 	return home
 }
 
+// DefaultExtractors returns the built-in document-extraction commands for
+// macOS + Linux. PDFs go through poppler's pdftotext; the office/ebook formats
+// go through pandoc. All write to stdout. Override or extend via the
+// `extractors` block in config.yaml (or per-project llmwiki.yaml); on Windows,
+// set these to whatever converters are installed. A missing tool is skipped at
+// scan time, not a fatal error.
+func DefaultExtractors() map[string]string {
+	return map[string]string{
+		".pdf":  "pdftotext {{input}} -",
+		".docx": "pandoc {{input}} -t plain",
+		".odt":  "pandoc {{input}} -t plain",
+		".epub": "pandoc {{input}} -t plain",
+	}
+}
+
 func LoadGlobalConfig(path string) (GlobalConfig, error) {
 	cfg := GlobalConfig{
 		LLM:        "claude-code",
 		OllamaHost: "http://localhost:11434",
 		WikiRoot:   filepath.Join(homeDir(), "llmwiki", "wiki"),
+		Extractors: DefaultExtractors(),
 	}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {

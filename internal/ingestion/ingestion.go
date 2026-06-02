@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/emgiezet/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/extractor"
 	"github.com/emgiezet/llmwiki/internal/llm"
 	"github.com/emgiezet/llmwiki/internal/memory"
 	"github.com/emgiezet/llmwiki/internal/scanner"
@@ -64,7 +65,7 @@ func IngestProject(ctx context.Context, projectDir, projectName string, cfg conf
 }
 
 func ingestSingleService(ctx context.Context, projectDir, projectName string, cfg config.Merged, l llm.LLM, mem *memory.Store, sections []Section) error {
-	scan, err := scanner.ScanProject(projectDir)
+	scan, err := scanner.ScanProject(ctx, projectDir, scanner.WithExtractor(extractor.New(cfg.Extractors)))
 	if err != nil {
 		return err
 	}
@@ -124,8 +125,9 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 	// Recall project-level knowledge once for all services.
 	recalled, _ := mem.RecallForProject(ctx, projectName, cfg.Customer)
 
+	ext := extractor.New(cfg.Extractors)
 	for _, svc := range services {
-		scan, err := scanner.ScanProject(svc.Path)
+		scan, err := scanner.ScanProject(ctx, svc.Path, scanner.WithExtractor(ext))
 		if err != nil {
 			return err
 		}

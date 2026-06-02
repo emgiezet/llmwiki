@@ -17,9 +17,10 @@ go vet ./...                          # static analysis
 
 The binary is a single cobra CLI. `main.go` wires the subcommands from `internal/cmd/`. The core data flow is:
 
-**ingest:** `scanner` → `ingestion` → `llm` → `wiki`
+**ingest:** `scanner` (+ `extractor`) → `ingestion` → `llm` → `wiki`
 
-1. `internal/scanner` — walks a project directory and collects relevant files (README, go.mod, docker-compose, .proto, etc.) into a single text summary. `DetectServices` auto-detects multi-service layouts from docker-compose.yml first, then subdirectory heuristics.
+1. `internal/scanner` — walks a project directory and collects relevant files (README, go.mod, docker-compose, .proto, etc.) into a single text summary. `DetectServices` auto-detects multi-service layouts from docker-compose.yml first, then subdirectory heuristics. `ScanProject(ctx, dir, opts...)` takes a `WithExtractor` option; when set, binary document files (`.pdf`/`.docx`/`.odt`/`.epub`) are converted to text and folded into the summary (capped at 50 files / ~50 KB each).
+   - `internal/extractor` — shells out to configurable external converters (`pandoc`, `pdftotext`) to turn document files into text. `CommandExtractor` maps an extension to a command template (`{{input}}` placeholder, run without a shell), mirroring the subprocess pattern in `llm/cli_backend.go`. A missing tool yields `ErrToolNotFound` and the scanner skips the file rather than failing.
 2. `internal/ingestion` — orchestrates the pipeline: scan → prompt → LLM call → write. `IngestProject` branches on whether services were detected: zero services = single project file, one+ services = one file per service.
 3. `internal/llm` — three backends behind the `LLM` interface (`Generate(ctx, prompt) (string, error)`): `claude-code` (shells to `claude -p`), `claude-api` (Anthropic SDK), `ollama` (REST). `NewFakeLLM` is the test double used throughout.
 4. `internal/wiki` — reads/writes markdown files with YAML front matter. `WriteProjectEntry`/`WriteServiceEntry` own the file format. `UpsertIndex` maintains the master `_index.md`.
@@ -57,6 +58,8 @@ local_docs_dir: docs/llmwiki
 ```
 
 Absent fields fall back to the global config. The `llm` field accepts `claude-code` (default, uses Claude Code subscription), `claude-api` (requires `ANTHROPIC_API_KEY`), or `ollama`. `output_mode` controls where wiki files are written: `central` (`~/llmwiki/wiki/` only), `local` (`<project>/<local_docs_dir>/` only), or `both`.
+
+For non-technical projects (notes, research, articles), set `extraction.preset` to `notes` or `research` (prose-oriented sections instead of code-oriented), and configure document converters via `extractors` (global config + per-project override). `config.DefaultExtractors()` ships the macOS/Linux defaults (`pdftotext`, `pandoc`); they merge key-by-key (`mergeExtractors` in `merge.go`).
 
 ## CLAUDE.md Injection
 

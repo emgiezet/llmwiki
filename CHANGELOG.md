@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0](https://github.com/emgiezet/llmwiki/compare/v2.5.0...v2.6.0) (2026-06-02)
+
+
+### Features
+
+* interactive config wizards (setup + init) ([#21](https://github.com/emgiezet/llmwiki/issues/21)) ([5389b9b](https://github.com/emgiezet/llmwiki/commit/5389b9b431ff72fb0199a8a1954eb03c7dd7124d))
+
 ## [2.5.0](https://github.com/emgiezet/llmwiki/compare/v2.4.1...v2.5.0) (2026-06-02)
 
 

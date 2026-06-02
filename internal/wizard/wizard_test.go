@@ -149,3 +149,11 @@ func TestTextValidated_StopsOnEOF(t *testing.T) {
 		t.Errorf("got %q, want last input %q on EOF", got, "bad")
 	}
 }
+
+func TestTextValidated_DefaultOnImmediateEOF(t *testing.T) {
+	p, _ := newTestPrompter("") // no input at all
+	got := p.TextValidated("Customer", "acme", func(string) error { return nil })
+	if got != "acme" {
+		t.Errorf("got %q, want default %q on immediate EOF", got, "acme")
+	}
+}

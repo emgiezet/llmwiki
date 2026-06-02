@@ -126,28 +126,27 @@ func (p *Prompter) Confirm(label string, def bool) bool {
 }
 
 // TextValidated asks a free-text question, re-prompting until validate accepts
-// the value. On EOF it returns the last value read (caller may treat an
-// invalid final value as a cancellation).
+// the value. If the input ends after one or more typed values, it returns the
+// last typed value (which the caller may treat as a cancellation). On immediate
+// EOF with nothing typed, it returns def — matching Text/Choice/Confirm.
 func (p *Prompter) TextValidated(label, def string, validate func(string) error) string {
-	var last string
+	last := def
+	typed := false
 	for {
-		if p.eof {
-			return last
-		}
 		v := p.Text(label, def)
-		if p.eof && v == def {
-			// EOF was hit inside Text and the default was returned; return the
-			// last explicitly-typed value instead.
-			return last
-		}
-		last = v
-		if err := validate(v); err == nil {
+		if !p.eof {
+			last = v
+			typed = true
+			if err := validate(v); err != nil {
+				fmt.Fprintf(p.out, "  ! %v\n", err)
+				continue
+			}
 			return v
-		} else {
-			fmt.Fprintf(p.out, "  ! %v\n", err)
 		}
-		if p.eof {
+		// Input exhausted this iteration.
+		if typed {
 			return last
 		}
+		return def
 	}
 }

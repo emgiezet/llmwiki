@@ -158,6 +158,32 @@ var AllSections = []Section{
 		ID: "bug_summary", Title: "Recent Bugs", Scope: ScopeProject, Category: "production",
 		Instruction: "Summary of the last three months of bug fixes. For each notable bug: what broke, how it surfaced, the fix, and any regression guard added. If this is an ingest-from-scratch run, note that the full history will populate once the project has been re-ingested after v1.4.0 ships the git-log extractor.",
 	},
+
+	// Knowledge-oriented sections — for non-technical projects (notes,
+	// research, articles, lectures) whose source material is prose extracted
+	// from PDFs/DOCX/ODT/EPUB rather than code. Scope is Both so the "notes"
+	// and "research" presets resolve for service-scope too (see the
+	// resolve-order note in IngestProject).
+	{
+		ID: "summary", Title: "Summary", Scope: ScopeBoth, Category: "knowledge",
+		Instruction: "A concise overview of what this body of material covers: the subject, its purpose, and the main takeaway. Write it so a reader who has not seen the documents understands what they are about and why they matter. Ground every statement in the extracted content — do not invent.",
+	},
+	{
+		ID: "key_topics", Title: "Key Topics", Scope: ScopeBoth, Category: "knowledge",
+		Instruction: "The main themes, subjects, or areas covered across the material. One bullet per topic with a short description. Group related topics where it aids understanding. Base this strictly on what appears in the documents.",
+	},
+	{
+		ID: "key_points", Title: "Key Points / Findings", Scope: ScopeBoth, Category: "knowledge",
+		Instruction: "The substantive arguments, findings, conclusions, or claims made in the material. For research, capture results and the evidence behind them; for notes/lectures, capture the core ideas and how they connect. Cite the source document when a point comes from a specific file.",
+	},
+	{
+		ID: "references", Title: "References / Sources", Scope: ScopeBoth, Category: "knowledge",
+		Instruction: "Citations, bibliography entries, external sources, and works referenced in the material. List each with whatever identifying detail is present (author, title, year, URL/DOI). If the documents contain no references, write \"No references detected in the source material.\"",
+	},
+	{
+		ID: "glossary", Title: "Glossary", Scope: ScopeBoth, Category: "knowledge",
+		Instruction: "Key terms, acronyms, and domain-specific vocabulary used in the material, each with a short definition drawn from how the documents use them. Skip terms that are not actually defined or used in the content.",
+	},
 }
 
 // sectionByID indexes AllSections for O(1) lookup.
@@ -205,6 +231,16 @@ var Presets = map[string][]string{
 	"status-poc": {
 		"domain", "scope_assumptions", "architecture",
 		"tech_stack", "success_criteria", "notes", "tags",
+	},
+	// Knowledge presets for non-technical projects. Selected via
+	// `extraction.preset: notes` / `research` in llmwiki.yaml. The project
+	// type (personal/client/oss) still controls the wiki directory.
+	"notes": {
+		"summary", "key_topics", "key_points", "open_questions", "tags",
+	},
+	"research": {
+		"summary", "key_topics", "key_points", "references",
+		"glossary", "open_questions", "tags",
 	},
 }
 

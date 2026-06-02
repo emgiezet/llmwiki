@@ -1,6 +1,9 @@
 package config
 
-import "path/filepath"
+import (
+	"maps"
+	"path/filepath"
+)
 
 // Merge resolves global defaults, a per-client baseline, and a per-project
 // override into a single Merged result. Precedence per field:
@@ -51,6 +54,11 @@ func Merge(g GlobalConfig, c ClientConfig, p ProjectConfig) Merged {
 
 		// Extraction: three-way merge field by field (see mergeExtraction).
 		Extraction: mergeExtraction(g, c, p),
+
+		// Extractors: global defaults overridden per-key by the project. Client
+		// is intentionally skipped — extraction tools are machine/OS-specific,
+		// not org-wide.
+		Extractors: mergeExtractors(g.Extractors, p.Extractors),
 	}
 
 	// LLM: project > client > global.
@@ -113,6 +121,19 @@ func mergeLinks(c, p LinksConfig) (LinksConfig, map[string]bool) {
 		inherited = nil
 	}
 	return out, inherited
+}
+
+// mergeExtractors overlays project extractor commands on top of the global
+// defaults, key by key (project wins on collision). Returns nil when neither
+// layer defines any extractor.
+func mergeExtractors(g, p map[string]string) map[string]string {
+	if len(g) == 0 && len(p) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(g)+len(p))
+	maps.Copy(out, g)
+	maps.Copy(out, p) // project wins on collision
+	return out
 }
 
 // mergeTeam applies the non-empty-wins rule per field, returning per-field

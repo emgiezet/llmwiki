@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/emgiezet/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/extractor"
 	"github.com/emgiezet/llmwiki/internal/ingestion"
 	"github.com/emgiezet/llmwiki/internal/llm"
 	"github.com/emgiezet/llmwiki/internal/memory"
@@ -67,7 +68,7 @@ With --write, overwrites the target file in the project directory.`,
 			projectName := filepath.Base(projectDir)
 
 			// 1. Scan the current project state.
-			scan, err := scanner.ScanProject(projectDir)
+			scan, err := scanner.ScanProject(cmd.Context(), projectDir, scanner.WithExtractor(extractor.New(cfg.Extractors)))
 			if err != nil {
 				return fmt.Errorf("scan project: %w", err)
 			}

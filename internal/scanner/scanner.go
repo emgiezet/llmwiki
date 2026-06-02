@@ -1,12 +1,14 @@
 package scanner
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/emgiezet/llmwiki/internal/extractor"
 	"github.com/emgiezet/llmwiki/internal/safeio"
 )
 
@@ -15,6 +17,32 @@ type ScanResult struct {
 	Dir     string
 	Summary string // concatenated file contents, formatted for LLM prompt
 }
+
+// scanOptions carries optional behaviour toggles for ScanProject.
+type scanOptions struct {
+	extractor extractor.Extractor
+}
+
+// ScanOption configures a ScanProject call.
+type ScanOption func(*scanOptions)
+
+// WithExtractor enables text extraction for binary document files (PDF, DOCX,
+// ODT, EPUB, …). Files whose extension the extractor recognises are converted
+// to plain text and folded into the scan summary. Without this option the
+// scanner reads UTF-8 text only, exactly as before.
+func WithExtractor(e extractor.Extractor) ScanOption {
+	return func(o *scanOptions) { o.extractor = e }
+}
+
+const (
+	// documentMaxChars truncates each extracted document, matching the
+	// discovery-doc budget so a long paper survives mostly intact.
+	documentMaxChars = 50000
+	// documentsMaxFiles caps how many documents we extract per scan, so a
+	// folder with hundreds of PDFs can't blow up the prompt or spawn hundreds
+	// of converter subprocesses.
+	documentsMaxFiles = 50
+)
 
 // fileTarget defines a file pattern and its max allowed content size.
 type fileTarget struct {
@@ -94,9 +122,17 @@ var skipDirs = map[string]bool{
 	".nuxt":        true,
 }
 
-// ScanProject walks dir and collects relevant file contents.
-func ScanProject(dir string) (ScanResult, error) {
+// ScanProject walks dir and collects relevant file contents. Pass
+// WithExtractor to also fold in text extracted from binary document files.
+func ScanProject(ctx context.Context, dir string, opts ...ScanOption) (ScanResult, error) {
+	var o scanOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+
 	var parts []string
+	docsExtracted := 0
+	docsCapNoted := false
 
 	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -127,6 +163,36 @@ func ScanProject(dir string) (ScanResult, error) {
 				content = content[:maxChars] + "\n[truncated]"
 			}
 			parts = append(parts, fmt.Sprintf("=== %s ===\n%s", rel, content))
+			return nil
+		}
+
+		// Document extraction: binary formats (PDF/DOCX/ODT/EPUB) that no text
+		// target matched. Routed through the configured external converter.
+		if o.extractor != nil && o.extractor.CanExtract(d.Name()) {
+			if docsExtracted >= documentsMaxFiles {
+				if !docsCapNoted {
+					parts = append(parts, fmt.Sprintf(
+						"[document extraction capped at %d files — additional documents omitted]",
+						documentsMaxFiles))
+					docsCapNoted = true
+				}
+				return nil
+			}
+			text, exErr := o.extractor.Extract(ctx, path)
+			if exErr != nil {
+				// Missing tool or converter failure — skip the file, don't fail
+				// the whole scan (mirrors the non-utf8 skip above).
+				fmt.Fprintf(os.Stderr, "skipping document %s: %v\n", rel, exErr)
+				return nil
+			}
+			if text == "" {
+				return nil
+			}
+			if len(text) > documentMaxChars {
+				text = text[:documentMaxChars] + "\n[truncated]"
+			}
+			parts = append(parts, fmt.Sprintf("=== %s ===\n%s", rel, text))
+			docsExtracted++
 		}
 		return nil
 	})

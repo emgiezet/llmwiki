@@ -495,6 +495,16 @@ gemini_binary_path: ""
 codex_binary_path: ""
 opencode_binary_path: ""
 pi_binary_path: ""
+
+# Document text extraction (see "Non-technical projects" below). Maps a file
+# extension to a command template; {{input}} is replaced with the file path and
+# the command must write extracted text to stdout. Defaults target macOS/Linux;
+# override per-OS or per-project. A missing tool is skipped, not fatal.
+extractors:
+  .pdf:  "pdftotext {{input}} -"
+  .docx: "pandoc {{input}} -t plain"
+  .odt:  "pandoc {{input}} -t plain"
+  .epub: "pandoc {{input}} -t plain"
 ```
 
 Per-project config overrides client config overrides global. If none exist, defaults to `claude-code` with wiki at `~/llmwiki/wiki/`.
@@ -510,6 +520,44 @@ Per-project config overrides client config overrides global. If none exist, defa
 | `poc` | Domain, **Scope & Assumptions**, Architecture (light), Tech Stack, **Success Criteria**, Notes, Tags |
 
 Override per-run with `llmwiki ingest <path> --status discovery` or per-project via `status:` in `llmwiki.yaml`. Discovery projects automatically also get `docs/*.md`, `notes/*.md`, `PRD.md`, and `requirements.md` pulled into the scanner input.
+
+### Non-technical projects (notes, research, articles, lectures)
+
+llmwiki can document corpora whose source material is prose in `.pdf`, `.docx`,
+`.odt`, or `.epub` rather than code. Two pieces make this work:
+
+**1. Document text extraction.** During a scan, files matching a configured
+extension are run through an external converter and their text is folded into
+the LLM input alongside any README/Markdown. The converters are configured in
+`extractors:` (global config, overridable per-project) — defaults below target
+macOS and Linux:
+
+| Format | Default tool | Install |
+|---|---|---|
+| `.pdf` | `pdftotext` | `poppler-utils` (apt) / `poppler` (brew) |
+| `.docx` / `.odt` / `.epub` | `pandoc` | `pandoc` (apt/brew) |
+
+Extraction is always on when the tool is available; if a converter isn't on
+`PATH` the file is skipped with a warning rather than failing the run. At most
+50 documents are extracted per scan, each truncated to ~50 KB. On Windows, set
+`extractors` to whatever converters you have installed — no code change needed.
+
+**2. Knowledge presets.** Set `extraction.preset` in `llmwiki.yaml` to a
+prose-oriented section bundle instead of the code-oriented defaults:
+
+```yaml
+type: personal              # directory still: personal/ | clients/ | opensource/
+extraction:
+  preset: research          # or: notes
+```
+
+| Preset | Sections |
+|---|---|
+| `notes` | Summary, Key Topics, Key Points / Findings, Open Questions, Tags |
+| `research` | Summary, Key Topics, Key Points / Findings, References / Sources, Glossary, Open Questions, Tags |
+
+The project `type` still controls only where the file lands; the preset controls
+its shape. Point `llmwiki ingest` at the folder of documents as usual.
 
 ### Links, Team, Cost rendering
 

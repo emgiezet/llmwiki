@@ -35,6 +35,40 @@ func TestResolveSections_DefaultPresetProjectScope(t *testing.T) {
 	assert.NotContains(t, ids, "data_model")
 }
 
+func TestResolveSections_KnowledgePresets(t *testing.T) {
+	for _, preset := range []string{"notes", "research"} {
+		t.Run(preset, func(t *testing.T) {
+			cfg := config.ExtractionConfig{Preset: preset}
+
+			proj, err := ingestion.ResolveSections(cfg, "", ingestion.ScopeProject)
+			require.NoError(t, err)
+			projIDs := sectionIDs(proj)
+			assert.Contains(t, projIDs, "summary")
+			assert.Contains(t, projIDs, "key_topics")
+			assert.Contains(t, projIDs, "key_points")
+			assert.Contains(t, projIDs, "tags")
+			// Code-oriented sections must not leak into a knowledge preset.
+			assert.NotContains(t, projIDs, "architecture")
+			assert.NotContains(t, projIDs, "services")
+
+			// Service scope must also resolve (non-empty), since IngestProject
+			// resolves service sections up front and errors on an empty result.
+			svc, err := ingestion.ResolveSections(cfg, "", ingestion.ScopeService)
+			require.NoError(t, err, "knowledge preset must resolve for service scope too")
+			assert.NotEmpty(t, svc)
+		})
+	}
+}
+
+func TestResolveSections_ResearchHasReferencesAndGlossary(t *testing.T) {
+	got, err := ingestion.ResolveSections(config.ExtractionConfig{Preset: "research"}, "", ingestion.ScopeProject)
+	require.NoError(t, err)
+	ids := sectionIDs(got)
+	assert.Contains(t, ids, "references")
+	assert.Contains(t, ids, "glossary")
+	assert.Contains(t, ids, "open_questions")
+}
+
 func TestResolveSections_DefaultPresetServiceScope(t *testing.T) {
 	got, err := ingestion.ResolveSections(config.ExtractionConfig{}, "", ingestion.ScopeService)
 	require.NoError(t, err)

@@ -1,6 +1,7 @@
 package scanner_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,7 +17,7 @@ func TestScanProject_CollectsREADME(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("# My Project\nDoes things."), 0644))
 
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "README.md")
 	assert.Contains(t, result.Summary, "# My Project")
@@ -29,7 +30,7 @@ func TestScanProject_CollectsRootPRD(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "PRD.md"),
 		[]byte("# Billing API PRD\n## Goals\nReduce manual invoice work."), 0644))
 
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "PRD.md")
 	assert.Contains(t, result.Summary, "Reduce manual invoice work.")
@@ -44,7 +45,7 @@ func TestScanProject_CollectsDocsDirFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "adr-001.md"),
 		[]byte("## ADR 1\nChose Postgres over MongoDB."), 0644))
 
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "docs/design.md")
 	assert.Contains(t, result.Summary, "Hex + ports & adapters.")
@@ -59,7 +60,7 @@ func TestScanProject_CollectsNotesDirFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(notesDir, "kickoff.md"),
 		[]byte("# Kickoff\n- Q1 stakeholders sign-off"), 0644))
 
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "notes/kickoff.md")
 	assert.Contains(t, result.Summary, "stakeholders sign-off")
@@ -75,7 +76,7 @@ func TestScanProject_CapsDocsDirAt20Files(t *testing.T) {
 		require.NoError(t, os.WriteFile(name, []byte("content"), 0644))
 	}
 
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	// Exactly 20 "=== docs/..." headers should appear.
 	count := strings.Count(result.Summary, "=== docs/")
@@ -92,7 +93,7 @@ func TestScanProject_TruncatesLargeDocsFile(t *testing.T) {
 	big := strings.Repeat("x", 60_000)
 	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "huge.md"), []byte(big), 0644))
 
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "[truncated]",
 		"a 60 KB docs file should trigger the truncation marker")
@@ -105,7 +106,7 @@ func TestScanProject_NoDocsDirIsHarmless(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"),
 		[]byte("module example.com/foo\n"), 0644))
 
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.NotContains(t, result.Summary, "omitted")
 	assert.Contains(t, result.Summary, "go.mod")
@@ -115,7 +116,7 @@ func TestScanProject_CollectsGoMod(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/foo\n\ngo 1.22\n"), 0644))
 
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "go.mod")
 }
@@ -126,9 +127,77 @@ func TestScanProject_IgnoresNodeModules(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "node_modules", "pkg", "index.js"), []byte("// ignore"), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Top"), 0644))
 
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.NotContains(t, result.Summary, "node_modules")
+}
+
+// fakeExtractor handles a fixed set of extensions and returns canned text,
+// avoiding any dependency on pandoc/pdftotext being installed.
+type fakeExtractor struct {
+	exts map[string]bool
+	text string
+	err  error
+}
+
+func (f fakeExtractor) CanExtract(name string) bool {
+	return f.exts[strings.ToLower(filepath.Ext(name))]
+}
+
+func (f fakeExtractor) Extract(_ context.Context, path string) (string, error) {
+	if f.err != nil {
+		return "", f.err
+	}
+	return f.text + " (" + filepath.Base(path) + ")", nil
+}
+
+func TestScanProject_ExtractsDocuments(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "paper.pdf"), []byte("%PDF-1.4 binary"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Notes project"), 0644))
+
+	fe := fakeExtractor{exts: map[string]bool{".pdf": true}, text: "EXTRACTED TEXT"}
+	result, err := scanner.ScanProject(context.Background(), dir, scanner.WithExtractor(fe))
+	require.NoError(t, err)
+	assert.Contains(t, result.Summary, "=== paper.pdf ===")
+	assert.Contains(t, result.Summary, "EXTRACTED TEXT")
+	assert.Contains(t, result.Summary, "# Notes project", "regular text still scanned")
+}
+
+func TestScanProject_NoExtractorSkipsDocuments(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "paper.pdf"), []byte("%PDF-1.4 binary"), 0644))
+
+	// Without WithExtractor, .pdf is not a text target → absent from summary.
+	result, err := scanner.ScanProject(context.Background(), dir)
+	require.NoError(t, err)
+	assert.NotContains(t, result.Summary, "=== paper.pdf ===")
+}
+
+func TestScanProject_ExtractorErrorSkipsFileNotScan(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "broken.pdf"), []byte("x"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Good"), 0644))
+
+	fe := fakeExtractor{exts: map[string]bool{".pdf": true}, err: fmt.Errorf("tool missing")}
+	result, err := scanner.ScanProject(context.Background(), dir, scanner.WithExtractor(fe))
+	require.NoError(t, err, "a failing extractor must not fail the whole scan")
+	assert.NotContains(t, result.Summary, "=== broken.pdf ===")
+	assert.Contains(t, result.Summary, "# Good")
+}
+
+func TestScanProject_CapsExtractedDocumentsAt50(t *testing.T) {
+	dir := t.TempDir()
+	for i := 0; i < 60; i++ {
+		name := filepath.Join(dir, fmt.Sprintf("doc-%02d.pdf", i))
+		require.NoError(t, os.WriteFile(name, []byte("x"), 0644))
+	}
+	fe := fakeExtractor{exts: map[string]bool{".pdf": true}, text: "T"}
+	result, err := scanner.ScanProject(context.Background(), dir, scanner.WithExtractor(fe))
+	require.NoError(t, err)
+	count := strings.Count(result.Summary, "=== doc-")
+	assert.Equal(t, 50, count, "extraction should cap at 50 documents, got %d", count)
+	assert.Contains(t, result.Summary, "additional documents omitted")
 }
 
 func TestDetectServices_FromDockerCompose(t *testing.T) {
@@ -204,7 +273,7 @@ func TestScanService_CollectsProto(t *testing.T) {
 	require.NoError(t, os.MkdirAll(svcDir, 0755))
 	require.NoError(t, os.WriteFile(filepath.Join(svcDir, "service.proto"), []byte("syntax = \"proto3\";\nservice Gateway {}"), 0644))
 
-	result, err := scanner.ScanProject(svcDir)
+	result, err := scanner.ScanProject(context.Background(), svcDir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "service.proto")
 }
@@ -213,7 +282,7 @@ func TestScanProject_CollectsMainGo(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.go"),
 		[]byte("package main\nfunc main() {}"), 0644))
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "main.go")
 }
@@ -222,7 +291,7 @@ func TestScanProject_CollectsDockerfile(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "Dockerfile"),
 		[]byte("FROM golang:1.23\nEXPOSE 8080"), 0644))
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "Dockerfile")
 }
@@ -231,7 +300,7 @@ func TestScanProject_CollectsCLAUDEmd(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "CLAUDE.md"),
 		[]byte("# Project context for Claude"), 0644))
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "CLAUDE.md")
 }
@@ -242,7 +311,7 @@ func TestScanProject_CollectsCmdMainGo(t *testing.T) {
 	require.NoError(t, os.MkdirAll(cmdDir, 0755))
 	require.NoError(t, os.WriteFile(filepath.Join(cmdDir, "main.go"),
 		[]byte("package main\nfunc main() { serve() }"), 0644))
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "cmd/server/main.go")
 }
@@ -252,7 +321,7 @@ func TestScanProject_HighValueFilesGetMoreChars(t *testing.T) {
 	bigContent := strings.Repeat("x", 7000)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "CLAUDE.md"),
 		[]byte(bigContent), 0644))
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.NotContains(t, result.Summary, "[truncated]")
 }
@@ -262,7 +331,7 @@ func TestScanProject_IncludesDirectoryTree(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "cmd", "server"), 0755))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "internal", "api"), 0755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main"), 0644))
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 	assert.Contains(t, result.Summary, "DIRECTORY STRUCTURE")
 	assert.Contains(t, result.Summary, "cmd/")
@@ -307,7 +376,7 @@ func TestScanProject_SkipsNonUTF8Files(t *testing.T) {
 	binaryContent := []byte{0xFF, 0xFE, 0x00, 0x01, 0x80, 0x90, 0xAB, 0xCD}
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), binaryContent, 0644))
 
-	result, err := scanner.ScanProject(dir)
+	result, err := scanner.ScanProject(context.Background(), dir)
 	require.NoError(t, err)
 
 	// README must be present.

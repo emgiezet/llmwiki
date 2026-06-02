@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/emgiezet/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/extractor"
 	"github.com/emgiezet/llmwiki/internal/ingestion"
 	"github.com/emgiezet/llmwiki/internal/llm"
 	"github.com/emgiezet/llmwiki/internal/memory"
@@ -112,7 +113,7 @@ func NewIngestCmd() *cobra.Command {
 				if _, err := os.Stat(serviceDir); err != nil {
 					return fmt.Errorf("service directory %q not found", serviceDir)
 				}
-				scan, scanErr := scanner.ScanProject(serviceDir)
+				scan, scanErr := scanner.ScanProject(cmd.Context(), serviceDir, scanner.WithExtractor(extractor.New(cfg.Extractors)))
 				if scanErr != nil {
 					return fmt.Errorf("scan service: %w", scanErr)
 				}

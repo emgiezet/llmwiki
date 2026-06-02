@@ -104,7 +104,7 @@ func NewInitCmd() *cobra.Command {
 				return err
 			}
 
-			if err := writeProjectConfig(abs, customer, projectType); err != nil {
+			if err := writeProjectConfig(abs, initOptions{customer: customer, projectType: projectType}, false); err != nil {
 				return err
 			}
 			fmt.Printf("✓ %s\n", filepath.Join(abs, "llmwiki.yaml"))
@@ -162,17 +162,43 @@ func installPreCommitHook(projectDir string) error {
 	return nil
 }
 
-func writeProjectConfig(projectDir, customer, projectType string) error {
+// initOptions carries the project-config fields the wizard / flags collect.
+type initOptions struct {
+	customer     string
+	projectType  string
+	preset       string
+	outputMode   string
+	localDocsDir string
+}
+
+// writeProjectConfig writes llmwiki.yaml from opts. When force is false it
+// refuses to overwrite an existing file (preserving the original `init`
+// behaviour); the interactive wizard passes force=true for edit mode.
+func writeProjectConfig(projectDir string, opts initOptions, force bool) error {
 	path := filepath.Join(projectDir, "llmwiki.yaml")
-	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("llmwiki.yaml already exists in %s", projectDir)
+	if !force {
+		if _, err := os.Stat(path); err == nil {
+			return fmt.Errorf("llmwiki.yaml already exists in %s", projectDir)
+		}
 	}
 
-	type projectYAML struct {
-		Customer string `yaml:"customer,omitempty"`
-		Type     string `yaml:"type,omitempty"`
+	type extractionYAML struct {
+		Preset string `yaml:"preset,omitempty"`
 	}
-	data, err := yaml.Marshal(projectYAML{Customer: customer, Type: projectType})
+	type projectYAML struct {
+		Customer     string         `yaml:"customer,omitempty"`
+		Type         string         `yaml:"type,omitempty"`
+		Extraction   extractionYAML `yaml:"extraction,omitempty"`
+		OutputMode   string         `yaml:"output_mode,omitempty"`
+		LocalDocsDir string         `yaml:"local_docs_dir,omitempty"`
+	}
+	data, err := yaml.Marshal(projectYAML{
+		Customer:     opts.customer,
+		Type:         opts.projectType,
+		Extraction:   extractionYAML{Preset: opts.preset},
+		OutputMode:   opts.outputMode,
+		LocalDocsDir: opts.localDocsDir,
+	})
 	if err != nil {
 		return err
 	}

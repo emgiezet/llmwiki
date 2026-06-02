@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/emgiezet/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/wizard"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -79,4 +82,42 @@ func TestInstallIntegrations_None(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, ".git", "hooks", "pre-commit")); !os.IsNotExist(err) {
 		t.Errorf("pre-commit hook should not exist; err=%v", err)
 	}
+}
+
+func TestRunInitWizard_ClientProject(t *testing.T) {
+	orig := graymatterDetected
+	graymatterDetected = func() bool { return false }
+	defer func() { graymatterDetected = orig }()
+
+	// type=client(1), customer=acme, preset=notes(6), output=both(3), localdir=Enter, preCommit=n, save=y
+	input := "1\nacme\n6\n3\n\nn\ny\n"
+	p := wizard.New(strings.NewReader(input), &bytes.Buffer{})
+
+	opts, inst, save := runInitWizard(p, config.ProjectConfig{})
+
+	assert.True(t, save)
+	assert.Equal(t, "client", opts.projectType)
+	assert.Equal(t, "acme", opts.customer)
+	assert.Equal(t, "notes", opts.preset)
+	assert.Equal(t, "both", opts.outputMode)
+	assert.Equal(t, "docs/llmwiki", opts.localDocsDir)
+	assert.False(t, inst.preCommit)
+}
+
+func TestRunInitWizard_PersonalNoCustomer(t *testing.T) {
+	orig := graymatterDetected
+	graymatterDetected = func() bool { return false }
+	defer func() { graymatterDetected = orig }()
+
+	// type=personal(2) → no customer prompt; preset=Enter(default), output=Enter(central), preCommit=n, save=n
+	input := "2\n\n\nn\nn\n"
+	p := wizard.New(strings.NewReader(input), &bytes.Buffer{})
+
+	opts, _, save := runInitWizard(p, config.ProjectConfig{})
+
+	assert.False(t, save)
+	assert.Equal(t, "personal", opts.projectType)
+	assert.Equal(t, "", opts.customer)
+	assert.Equal(t, "default", opts.preset)
+	assert.Equal(t, "central", opts.outputMode)
 }

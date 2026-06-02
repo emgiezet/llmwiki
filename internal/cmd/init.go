@@ -9,6 +9,9 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/emgiezet/llmwiki/internal/config"
+	"github.com/emgiezet/llmwiki/internal/validation"
+	"github.com/emgiezet/llmwiki/internal/wizard"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -213,6 +216,85 @@ func installIntegrations(abs string, graymatter, preCommit bool) {
 func graymatterInstalled() bool {
 	_, err := exec.LookPath("graymatter")
 	return err == nil
+}
+
+// graymatterDetected is graymatterInstalled by default; overridable in tests so
+// the wizard's prompt sequence is deterministic regardless of the host PATH.
+var graymatterDetected = graymatterInstalled
+
+// installChoices records which optional integrations the user opted into.
+type installChoices struct {
+	graymatter bool
+	preCommit  bool
+}
+
+func presetOptions() []wizard.Option {
+	return []wizard.Option{
+		{Value: "default", Label: "default — full software project sections"},
+		{Value: "minimal", Label: "minimal — domain/architecture/features/tags"},
+		{Value: "software", Label: "software — architecture, patterns, testing, runbook"},
+		{Value: "feature", Label: "feature — features + roadmap focus"},
+		{Value: "full", Label: "full — every section"},
+		{Value: "notes", Label: "notes — prose, for notes/meeting docs"},
+		{Value: "research", Label: "research — prose + references/glossary"},
+	}
+}
+
+// runInitWizard collects project config + install choices via prompts. existing
+// supplies edit-mode defaults (zero value for a fresh project). Returns the
+// collected options, install choices, and whether the user confirmed the save.
+func runInitWizard(p *wizard.Prompter, existing config.ProjectConfig) (initOptions, installChoices, bool) {
+	opts := initOptions{
+		customer:     existing.Customer,
+		projectType:  orDefault(existing.Type, "client"),
+		preset:       existing.Extraction.Preset,
+		outputMode:   orDefault(existing.OutputMode, "central"),
+		localDocsDir: orDefault(existing.LocalDocsDir, "docs/llmwiki"),
+	}
+
+	opts.projectType = p.Choice("Project type?", []wizard.Option{
+		{Value: "client", Label: "client"},
+		{Value: "personal", Label: "personal"},
+		{Value: "oss", Label: "open source"},
+	}, opts.projectType)
+
+	if opts.projectType == "client" {
+		opts.customer = p.TextValidated("Customer", opts.customer, func(s string) error {
+			return validation.NameComponentOptional("customer", s)
+		})
+	}
+
+	opts.preset = p.Choice("Extraction preset?", presetOptions(), orDefault(opts.preset, "default"))
+
+	opts.outputMode = p.Choice("Output mode?", []wizard.Option{
+		{Value: "central", Label: "central (~/llmwiki/wiki only, default)"},
+		{Value: "local", Label: "local (project docs dir only)"},
+		{Value: "both", Label: "both"},
+	}, opts.outputMode)
+	if opts.outputMode == "local" || opts.outputMode == "both" {
+		opts.localDocsDir = p.Text("Local docs dir", opts.localDocsDir)
+	}
+
+	var inst installChoices
+	if graymatterDetected() {
+		inst.graymatter = p.Confirm("Install graymatter hook + MCP?", true)
+	} else {
+		p.Note("graymatter not found in PATH — skipping hook/MCP (install from https://github.com/gdgvda/graymatter)")
+	}
+	inst.preCommit = p.Confirm("Install pre-commit freshness hook?", false)
+
+	p.Note("Optional metadata (links/team/cost/per-project llm) is not prompted — add it manually in llmwiki.yaml; it inherits from client config.")
+
+	p.Note("")
+	p.Note("Summary:")
+	p.Note("  type:        %s", opts.projectType)
+	if opts.projectType == "client" {
+		p.Note("  customer:    %s", opts.customer)
+	}
+	p.Note("  preset:      %s", orDefault(opts.preset, "default"))
+	p.Note("  output_mode: %s", opts.outputMode)
+	save := p.Confirm("Write llmwiki.yaml?", true)
+	return opts, inst, save
 }
 
 func installGraymatterHook(projectDir string) error {

@@ -51,6 +51,27 @@ func TestScrubLLMResponse_StripsInjectionMarkers(t *testing.T) {
 	}
 }
 
+func TestScrubLLMResponse_DeduplicatesL2Sections(t *testing.T) {
+	body := "## Domain\nFirst domain content.\n\n## Purpose\nPurpose content.\n\n## Domain\nDuplicate domain — should be dropped.\n\n## API Surface\nAPI content.\n\n## API Surface\nDuplicate API — should be dropped.\n"
+	got := scrubLLMResponse(body)
+
+	if !strings.Contains(got, "First domain content.") {
+		t.Error("expected first Domain section to be preserved")
+	}
+	if !strings.Contains(got, "Purpose content.") {
+		t.Error("expected Purpose section to be preserved")
+	}
+	if !strings.Contains(got, "API content.") {
+		t.Error("expected first API Surface section to be preserved")
+	}
+	if strings.Contains(got, "Duplicate domain") {
+		t.Error("expected duplicate Domain section to be removed")
+	}
+	if strings.Contains(got, "Duplicate API") {
+		t.Error("expected duplicate API Surface section to be removed")
+	}
+}
+
 func contains(s, sub string) bool {
 	return len(s) >= len(sub) && (s == sub || len(s) > 0 && containsStr(s, sub))
 }

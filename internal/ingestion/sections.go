@@ -85,7 +85,7 @@ var AllSections = []Section{
 	},
 	{
 		ID: "system_diagram", Title: "System Diagram", Scope: ScopeBoth, Category: "core",
-		Instruction: "Mermaid flowchart showing all services/components and external integrations. Output a mermaid code block using flowchart TD or LR. Label edges with protocols. Include databases, queues, and external APIs as nodes. Do not use subgraphs unless there are clear bounded contexts.",
+		Instruction: "Mermaid flowchart showing all services/components and external integrations. Output a mermaid code block using flowchart TD or LR. Label edges with protocols. Include databases, queues, and external APIs as nodes. Do not use subgraphs unless there are clear bounded contexts. Only use flowchart node/edge syntax — do NOT use participant, actor, activate, note, loop, alt, or any sequence diagram keywords.",
 	},
 	{
 		ID: "data_model", Title: "Data Model", Scope: ScopeService, Category: "core",

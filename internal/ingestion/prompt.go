@@ -39,7 +39,47 @@ func scrubLLMResponse(body string) string {
 		body = strings.ReplaceAll(body, "<"+tag+">", "")
 		body = strings.ReplaceAll(body, "</"+tag+">", "")
 	}
-	return body
+	return deduplicateSections(body)
+}
+
+// deduplicateSections removes duplicate L2 (##) sections, keeping the first
+// occurrence of each heading. Some local LLMs repeat sections when their output
+// wraps past the intended stop point.
+func deduplicateSections(body string) string {
+	const sep = "\n## "
+	parts := strings.Split(body, sep)
+	if len(parts) <= 1 {
+		return body
+	}
+
+	seen := make(map[string]bool)
+	out := make([]string, 0, len(parts))
+
+	// parts[0] is either a preamble or the first section when body starts with "## ".
+	first := parts[0]
+	if strings.HasPrefix(first, "## ") {
+		nl := strings.IndexByte(first, '\n')
+		title := first[3:]
+		if nl != -1 {
+			title = first[3:nl]
+		}
+		seen[title] = true
+	}
+	out = append(out, first)
+
+	for _, part := range parts[1:] {
+		nl := strings.IndexByte(part, '\n')
+		title := part
+		if nl != -1 {
+			title = part[:nl]
+		}
+		if !seen[title] {
+			seen[title] = true
+			out = append(out, part)
+		}
+	}
+
+	return strings.Join(out, sep)
 }
 
 // BuildProjectPrompt builds the LLM prompt for generating/updating a project _index.md.
@@ -177,7 +217,7 @@ SERVICE SUMMARIES (extracted from individual service wiki files):
 Use relative links to each service file, e.g., [service-name](service-name.md))
 
 ## System Diagram
-(Mermaid flowchart showing ALL services and their interactions. Output a mermaid code block using flowchart LR. Show data flow between services, external systems, databases, and queues. Label edges with protocols.)
+(Mermaid flowchart showing ALL services and their interactions. Output a mermaid code block using flowchart LR. Show data flow between services, external systems, databases, and queues. Label edges with protocols. Only use flowchart node/edge syntax — do NOT use participant, actor, activate, note, loop, alt, or any sequence diagram keywords.)
 
 ## Integrations
 (Consolidated external integrations across all services. Group by: databases, message queues, external APIs, observability.)
@@ -318,7 +358,7 @@ Generate a wiki entry using EXACTLY these markdown sections. Be thorough and det
 (Key end-to-end workflows. Use arrows: "A → B → C".)
 
 ## System Diagram
-(Mermaid flowchart showing services/components and external integrations. Use flowchart TD or LR.)
+(Mermaid flowchart showing services/components and external integrations. Use flowchart TD or LR. Only use flowchart node/edge syntax — do NOT use participant, actor, activate, note, loop, alt, or any sequence diagram keywords.)
 
 ## Data Model Diagram
 (Mermaid erDiagram showing key entities. If no schema is known, write "No database schema detected in accumulated facts." instead.)

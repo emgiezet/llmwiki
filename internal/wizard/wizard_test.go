@@ -2,6 +2,7 @@ package wizard
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -87,5 +88,64 @@ func TestChoice_DefaultOnEOF(t *testing.T) {
 	opts := []Option{{Value: "a", Label: "Apple"}}
 	if got := p.Choice("Pick", opts, "a"); got != "a" {
 		t.Errorf("got %q, want default %q on EOF", got, "a")
+	}
+}
+
+func TestConfirm_Yes(t *testing.T) {
+	p, _ := newTestPrompter("y\n")
+	if !p.Confirm("OK?", false) {
+		t.Error("expected true for 'y'")
+	}
+}
+
+func TestConfirm_No(t *testing.T) {
+	p, _ := newTestPrompter("n\n")
+	if p.Confirm("OK?", true) {
+		t.Error("expected false for 'n'")
+	}
+}
+
+func TestConfirm_DefaultOnEmpty(t *testing.T) {
+	p, out := newTestPrompter("\n")
+	if !p.Confirm("OK?", true) {
+		t.Error("expected default true on empty")
+	}
+	if !strings.Contains(out.String(), "[Y/n]") {
+		t.Errorf("default hint wrong; got %q", out.String())
+	}
+}
+
+func TestConfirm_InvalidThenValid(t *testing.T) {
+	p, out := newTestPrompter("maybe\nyes\n")
+	if !p.Confirm("OK?", false) {
+		t.Error("expected true after re-prompt")
+	}
+	if !strings.Contains(out.String(), "! please answer y or n") {
+		t.Errorf("missing re-prompt message; got %q", out.String())
+	}
+}
+
+func TestTextValidated_RepromptsOnError(t *testing.T) {
+	p, out := newTestPrompter("bad name\ngoodname\n")
+	validate := func(s string) error {
+		if strings.Contains(s, " ") {
+			return errors.New("no spaces allowed")
+		}
+		return nil
+	}
+	if got := p.TextValidated("Name", "", validate); got != "goodname" {
+		t.Errorf("got %q, want %q", got, "goodname")
+	}
+	if !strings.Contains(out.String(), "! no spaces allowed") {
+		t.Errorf("missing validation error; got %q", out.String())
+	}
+}
+
+func TestTextValidated_StopsOnEOF(t *testing.T) {
+	p, _ := newTestPrompter("bad\n")
+	validate := func(s string) error { return errors.New("always invalid") }
+	got := p.TextValidated("Name", "", validate)
+	if got != "bad" {
+		t.Errorf("got %q, want last input %q on EOF", got, "bad")
 	}
 }

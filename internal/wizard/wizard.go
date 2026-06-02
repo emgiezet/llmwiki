@@ -100,3 +100,54 @@ func (p *Prompter) Text(label, def string) string {
 	}
 	return line
 }
+
+// Confirm asks a yes/no question. Empty input (or EOF) returns def. Anything
+// other than y/yes/n/no re-prompts.
+func (p *Prompter) Confirm(label string, def bool) bool {
+	hint := "[y/N]"
+	if def {
+		hint = "[Y/n]"
+	}
+	for {
+		fmt.Fprintf(p.out, "%s %s: ", label, hint)
+		switch strings.ToLower(p.readLine()) {
+		case "":
+			return def
+		case "y", "yes":
+			return true
+		case "n", "no":
+			return false
+		}
+		fmt.Fprintln(p.out, "  ! please answer y or n")
+		if p.eof {
+			return def
+		}
+	}
+}
+
+// TextValidated asks a free-text question, re-prompting until validate accepts
+// the value. On EOF it returns the last value read (caller may treat an
+// invalid final value as a cancellation).
+func (p *Prompter) TextValidated(label, def string, validate func(string) error) string {
+	var last string
+	for {
+		if p.eof {
+			return last
+		}
+		v := p.Text(label, def)
+		if p.eof && v == def {
+			// EOF was hit inside Text and the default was returned; return the
+			// last explicitly-typed value instead.
+			return last
+		}
+		last = v
+		if err := validate(v); err == nil {
+			return v
+		} else {
+			fmt.Fprintf(p.out, "  ! %v\n", err)
+		}
+		if p.eof {
+			return last
+		}
+	}
+}

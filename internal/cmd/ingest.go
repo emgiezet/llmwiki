@@ -174,7 +174,7 @@ func NewIngestCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&service, "service", "", "Ingest only a specific service subdirectory")
 	cmd.Flags().BoolVar(&noMemory, "no-memory", false, "Disable memory recall/storage for this run")
-	cmd.Flags().StringVar(&preset, "preset", "", "Extraction preset (default|minimal|software|feature|full) — overrides llmwiki.yaml")
+	cmd.Flags().StringVar(&preset, "preset", "", "Extraction preset (default|minimal|software|feature|full|notes|research) — overrides llmwiki.yaml")
 	cmd.Flags().StringSliceVar(&sectionsFlag, "sections", nil, "Comma-separated section IDs to extract — overrides llmwiki.yaml and --preset")
 	cmd.Flags().IntVar(&maxTokens, "max-tokens", 0, "Cap LLM output tokens per call (0 = backend default)")
 	cmd.Flags().StringVar(&statusFlag, "status", "", "Project lifecycle status (production|poc|discovery) — overrides llmwiki.yaml")

@@ -51,20 +51,28 @@ func TestNewLLM_ClaudeAPIBackend_WithKey(t *testing.T) {
 
 func TestOllamaLLM_Generate(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/generate", r.URL.Path)
+		assert.Equal(t, "/api/chat", r.URL.Path)
 		assert.Equal(t, "POST", r.Method)
 
 		var req struct {
-			Model  string `json:"model"`
-			Prompt string `json:"prompt"`
-			Stream bool   `json:"stream"`
+			Model    string `json:"model"`
+			Stream   bool   `json:"stream"`
+			Messages []struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			} `json:"messages"`
 		}
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 		assert.Equal(t, "llama3.2", req.Model)
 		assert.False(t, req.Stream)
+		require.Len(t, req.Messages, 1)
+		assert.Equal(t, "user", req.Messages[0].Role)
+		assert.Equal(t, "describe this project", req.Messages[0].Content)
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"response": "## Domain\nOllama response."})
+		json.NewEncoder(w).Encode(map[string]any{
+			"message": map[string]string{"role": "assistant", "content": "## Domain\nOllama response."},
+		})
 	}))
 	defer server.Close()
 
@@ -72,6 +80,25 @@ func TestOllamaLLM_Generate(t *testing.T) {
 	result, err := l.Generate(context.Background(), "describe this project")
 	require.NoError(t, err)
 	assert.Equal(t, "## Domain\nOllama response.", result)
+}
+
+func TestOllamaLLM_Generate_NoSpecialTokens(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// Simulate a model that leaks EOM tokens (e.g. Bielik) — the chat
+		// endpoint strips these server-side, so content should arrive clean.
+		json.NewEncoder(w).Encode(map[string]any{
+			"message": map[string]string{"role": "assistant", "content": "## Tags\ngo, bielik"},
+		})
+	}))
+	defer server.Close()
+
+	l := llm.NewOllamaLLM(server.URL, "bielik", 0)
+	result, err := l.Generate(context.Background(), "describe this project")
+	require.NoError(t, err)
+	assert.NotContains(t, result, "<|start_eom_id|>")
+	assert.NotContains(t, result, "<|end_eom_id|>")
+	assert.Equal(t, "## Tags\ngo, bielik", result)
 }
 
 // TestOllamaLLM_ContextCancellation verifies that the Ollama client respects

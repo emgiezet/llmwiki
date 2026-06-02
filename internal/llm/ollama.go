@@ -26,20 +26,20 @@ func NewOllamaLLM(host, model string, maxTokens int) LLM {
 }
 
 func (l *OllamaLLM) Generate(ctx context.Context, prompt string) (string, error) {
-	payload := map[string]interface{}{
-		"model":  l.model,
-		"prompt": prompt,
-		"stream": false,
+	payload := map[string]any{
+		"model":    l.model,
+		"messages": []map[string]string{{"role": "user", "content": prompt}},
+		"stream":   false,
 	}
 	if l.maxTokens > 0 {
-		payload["options"] = map[string]interface{}{"num_predict": l.maxTokens}
+		payload["options"] = map[string]any{"num_predict": l.maxTokens}
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, l.host+"/api/generate", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, l.host+"/api/chat", bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}
@@ -56,10 +56,12 @@ func (l *OllamaLLM) Generate(ctx context.Context, prompt string) (string, error)
 	}
 
 	var result struct {
-		Response string `json:"response"`
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", fmt.Errorf("decode ollama response: %w", err)
 	}
-	return strings.TrimSpace(result.Response), nil
+	return strings.TrimSpace(result.Message.Content), nil
 }

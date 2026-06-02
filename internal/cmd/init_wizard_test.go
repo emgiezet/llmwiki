@@ -168,3 +168,27 @@ func TestInitCmd_InteractiveNoFlags_RunsWizard(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "personal", cfg.Type)
 }
+
+func TestInitCmd_InteractiveEditMode_WarnsOverwrite(t *testing.T) {
+	origI := isInteractive
+	isInteractive = func() bool { return true }
+	defer func() { isInteractive = origI }()
+	origG := graymatterDetected
+	graymatterDetected = func() bool { return false }
+	defer func() { graymatterDetected = origG }()
+
+	dir := t.TempDir()
+	// Pre-existing config makes this an edit, not a fresh init.
+	require.NoError(t, writeProjectConfig(dir, initOptions{projectType: "client", customer: "acme"}, false))
+
+	out := &bytes.Buffer{}
+	cmd := NewInitCmd()
+	cmd.SetArgs([]string{dir})
+	// type=personal(2), preset=Enter, output=Enter, preCommit=n, save=y
+	cmd.SetIn(strings.NewReader("2\n\n\nn\ny\n"))
+	cmd.SetOut(out)
+	cmd.SetErr(&bytes.Buffer{})
+	require.NoError(t, cmd.Execute())
+
+	assert.Contains(t, out.String(), "overwrite")
+}

@@ -123,6 +123,9 @@ func NewInitCmd() *cobra.Command {
 			if !anyInitFlagChanged(cmd) && isInteractive() {
 				existing, _ := config.LoadProjectConfig(abs) // zero value if none
 				p := wizard.New(cmd.InOrStdin(), cmd.OutOrStdout())
+				if _, statErr := os.Stat(filepath.Join(abs, "llmwiki.yaml")); statErr == nil {
+					p.Note("Editing existing llmwiki.yaml — saving will overwrite it.")
+				}
 				opts, inst, save := runInitWizard(p, existing)
 				if !save {
 					fmt.Fprintln(cmd.OutOrStdout(), "no changes made")

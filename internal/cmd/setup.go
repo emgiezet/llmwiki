@@ -3,9 +3,11 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/emgiezet/llmwiki/internal/config"
@@ -108,8 +110,13 @@ func runSetupWizard(p *wizard.Prompter, cfg *config.GlobalConfig) bool {
 	}
 
 	p.Note("Document extractors (detection only — edit `extractors` to change):")
-	for ext, cmdTmpl := range cfg.Extractors {
-		tool := firstWord(cmdTmpl)
+	exts := make([]string, 0, len(cfg.Extractors))
+	for ext := range cfg.Extractors {
+		exts = append(exts, ext)
+	}
+	sort.Strings(exts)
+	for _, ext := range exts {
+		tool := firstWord(cfg.Extractors[ext])
 		p.Note("  %-6s %s [%s]", ext, tool, toolStatus(tool))
 	}
 
@@ -124,15 +131,44 @@ func runSetupWizard(p *wizard.Prompter, cfg *config.GlobalConfig) bool {
 	return p.Confirm("Save to ~/.llmwiki/config.yaml?", true)
 }
 
-// saveGlobalConfig marshals the whole GlobalConfig (preserving unmanaged
-// fields such as binary paths) and writes it to path.
+// saveGlobalConfig overlays the wizard-managed keys onto the existing config
+// file (or a new one) and writes it back. It loads the file as a raw map so
+// any keys the wizard does not manage (binary paths, custom extractors, …)
+// survive untouched, and a previously minimal config stays minimal — no
+// default extractor map or empty scalar fields are injected.
 func saveGlobalConfig(path string, cfg config.GlobalConfig) error {
+	raw := map[string]any{}
+	data, err := os.ReadFile(path)
+	switch {
+	case err == nil:
+		if err := yaml.Unmarshal(data, &raw); err != nil {
+			return fmt.Errorf("parse existing config: %w", err)
+		}
+	case !errors.Is(err, fs.ErrNotExist):
+		return err
+	}
+
+	raw["llm"] = cfg.LLM
+	raw["wiki_root"] = cfg.WikiRoot
+	raw["memory_enabled"] = cfg.MemoryEnabled
+	if cfg.MemoryEnabled {
+		raw["memory_mode"] = orDefault(cfg.MemoryMode, config.MemoryModeProject)
+	}
+	switch cfg.LLM {
+	case "claude-api":
+		if cfg.AnthropicAPIKey != "" {
+			raw["anthropic_api_key"] = cfg.AnthropicAPIKey
+		}
+	case "ollama":
+		raw["ollama_host"] = cfg.OllamaHost
+	}
+
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { // #nosec G301
 		return fmt.Errorf("create config dir: %w", err)
 	}
-	data, err := yaml.Marshal(cfg)
+	out, err := yaml.Marshal(raw)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o600)
+	return os.WriteFile(path, out, 0o600)
 }

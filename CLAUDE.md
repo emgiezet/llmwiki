@@ -13,6 +13,11 @@ go test ./... -run TestFoo -v         # run a single test by name
 go vet ./...                          # static analysis
 ```
 
+```bash
+llmwiki setup                         # interactive global config wizard (~/.llmwiki/config.yaml)
+llmwiki init                          # interactive per-project wizard (no flags + TTY)
+```
+
 ## Architecture
 
 The binary is a single cobra CLI. `main.go` wires the subcommands from `internal/cmd/`. The core data flow is:
@@ -60,6 +65,10 @@ local_docs_dir: docs/llmwiki
 Absent fields fall back to the global config. The `llm` field accepts `claude-code` (default, uses Claude Code subscription), `claude-api` (requires `ANTHROPIC_API_KEY`), or `ollama`. `output_mode` controls where wiki files are written: `central` (`~/llmwiki/wiki/` only), `local` (`<project>/<local_docs_dir>/` only), or `both`.
 
 For non-technical projects (notes, research, articles), set `extraction.preset` to `notes` or `research` (prose-oriented sections instead of code-oriented), and configure document converters via `extractors` (global config + per-project override). `config.DefaultExtractors()` ships the macOS/Linux defaults (`pdftotext`, `pandoc`); they merge key-by-key (`mergeExtractors` in `merge.go`).
+
+## Interactive Setup
+
+`llmwiki setup` runs an interactive wizard for the global `~/.llmwiki/config.yaml` (LLM backend, wiki root, memory, extractor detection). Running `llmwiki init` with no flags in a terminal launches a per-project wizard (type, customer, extraction preset, output mode, optional hooks). Passing any flag (`--customer`/`--type`/`--hooks`/`--no-graymatter`) or running without a TTY (CI) keeps the original non-interactive behaviour. Both wizards load an existing config as defaults, so they double as editors. The prompt helpers live in `internal/wizard` (a dependency-free `Prompter` with injectable I/O); TTY detection is the package-level `isInteractive` var in `internal/cmd/setup.go`.
 
 ## CLAUDE.md Injection
 

@@ -26,6 +26,7 @@ func main() {
 	root.SilenceErrors = true
 	root.AddCommand(
 		cmd.NewInitCmd(),
+		cmd.NewSetupCmd(),
 		cmd.NewIngestCmd(),
 		cmd.NewQueryCmd(),
 		cmd.NewContextCmd(),

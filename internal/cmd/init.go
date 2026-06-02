@@ -109,31 +109,7 @@ func NewInitCmd() *cobra.Command {
 			}
 			fmt.Printf("✓ %s\n", filepath.Join(abs, "llmwiki.yaml"))
 
-			if !noGraymatter {
-				if !graymatterInstalled() {
-					fmt.Println("  graymatter not found in PATH — skipping (install from https://github.com/gdgvda/graymatter)")
-				} else {
-					if err := installGraymatterHook(abs); err != nil {
-						fmt.Fprintf(os.Stderr, "warning: graymatter hook: %v\n", err)
-					} else {
-						fmt.Printf("✓ graymatter Stop hook → %s/.claude/\n", abs)
-					}
-					if err := installGraymatterMCP(abs); err != nil {
-						fmt.Fprintf(os.Stderr, "warning: graymatter MCP: %v\n", err)
-					} else {
-						fmt.Printf("✓ graymatter MCP server → %s/.mcp.json\n", abs)
-					}
-				}
-			}
-
-			if installHooks {
-				if err := installPreCommitHook(abs); err != nil {
-					fmt.Fprintf(os.Stderr, "warning: pre-commit hook: %v\n", err)
-				} else {
-					fmt.Printf("✓ pre-commit hook → %s/.git/hooks/pre-commit\n", abs)
-				}
-			}
-
+			installIntegrations(abs, !noGraymatter, installHooks)
 			return nil
 		},
 	}
@@ -203,6 +179,35 @@ func writeProjectConfig(projectDir string, opts initOptions, force bool) error {
 		return err
 	}
 	return os.WriteFile(path, data, 0o600)
+}
+
+// installIntegrations installs the optional graymatter hook+MCP and/or the
+// pre-commit freshness hook, printing progress to stdout/stderr. Shared by the
+// flag-driven and wizard-driven init paths.
+func installIntegrations(abs string, graymatter, preCommit bool) {
+	if graymatter {
+		if !graymatterInstalled() {
+			fmt.Println("  graymatter not found in PATH — skipping (install from https://github.com/gdgvda/graymatter)")
+		} else {
+			if err := installGraymatterHook(abs); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: graymatter hook: %v\n", err)
+			} else {
+				fmt.Printf("✓ graymatter Stop hook → %s/.claude/\n", abs)
+			}
+			if err := installGraymatterMCP(abs); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: graymatter MCP: %v\n", err)
+			} else {
+				fmt.Printf("✓ graymatter MCP server → %s/.mcp.json\n", abs)
+			}
+		}
+	}
+	if preCommit {
+		if err := installPreCommitHook(abs); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: pre-commit hook: %v\n", err)
+		} else {
+			fmt.Printf("✓ pre-commit hook → %s/.git/hooks/pre-commit\n", abs)
+		}
+	}
 }
 
 func graymatterInstalled() bool {

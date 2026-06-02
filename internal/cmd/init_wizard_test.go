@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/emgiezet/llmwiki/internal/config"
@@ -55,4 +57,26 @@ func TestWriteProjectConfig_WritesPresetAndOutputMode(t *testing.T) {
 	assert.Equal(t, "notes", cfg.Extraction.Preset)
 	assert.Equal(t, "both", cfg.OutputMode)
 	assert.Equal(t, "docs/llmwiki", cfg.LocalDocsDir)
+}
+
+func TestInstallIntegrations_PreCommitOnly(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git", "hooks"), 0o755))
+
+	installIntegrations(dir, false, true)
+
+	if _, err := os.Stat(filepath.Join(dir, ".git", "hooks", "pre-commit")); err != nil {
+		t.Errorf("pre-commit hook not installed: %v", err)
+	}
+}
+
+func TestInstallIntegrations_None(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git", "hooks"), 0o755))
+
+	installIntegrations(dir, false, false)
+
+	if _, err := os.Stat(filepath.Join(dir, ".git", "hooks", "pre-commit")); !os.IsNotExist(err) {
+		t.Errorf("pre-commit hook should not exist; err=%v", err)
+	}
 }

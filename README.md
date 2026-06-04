@@ -49,6 +49,7 @@ Multi-client setups also get executive summaries with C4 diagrams, and every fil
 - **Mermaid diagrams** — architecture flowcharts, ERDs, and C4 landscapes; render in GitHub/GitLab/Obsidian.
 - **Cross-file linking** — service mentions become clickable links across the knowledge graph.
 - **AI-coding integration** — inject Domain/Architecture/Services/Flows straight into `CLAUDE.md`.
+- **MCP server** — agents query the extracted wiki over stdio (`llmwiki mcp`), filtered by client/project, no LLM call.
 - **Incremental refinement** — re-running `ingest` refines the previous entry instead of starting over.
 - **Change tracking & freshness** — knows which source files each entry describes and flags drift (`llmwiki check`).
 - **Docs alongside code** — write wikis into the repo (`output_mode: local|both`) so one PR shows code + doc.

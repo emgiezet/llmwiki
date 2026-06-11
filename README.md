@@ -14,6 +14,8 @@ Docs rot the moment you write them. `llmwiki` scans a project and generates a pe
 
 **Your AI agents read it directly over [MCP](#features)** — `llmwiki mcp` serves every project's extracted domain, services, and flows to Claude Code, Cursor, and any MCP client, with no LLM call and no re-explaining the repo each session.
 
+![llmwiki demo — npx llmwiki ingest, then check, then the generated wiki](docs/demo.svg)
+
 ![llmwiki in Obsidian](docs/obsidian.png)
 
 ## Quick start

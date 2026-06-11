@@ -51,6 +51,50 @@ curl -fsSL https://raw.githubusercontent.com/emgiezet/llmwiki/main/install.sh | 
 go install github.com/emgiezet/llmwiki@latest
 ```
 
+### npm / npx (no install)
+
+If you already have Node ≥ 18, run llmwiki with no install:
+
+```bash
+npx llmwiki ingest ~/workspace/my-api
+```
+
+Or install it globally:
+
+```bash
+npm install -g llmwiki
+```
+
+The npm package is a thin launcher: on first run it downloads the matching prebuilt binary for your platform, verifies its SHA256 against `checksums.txt`, and execs it. The npm version tracks the release version, so `npx llmwiki@2.6.0` fetches the `v2.6.0` binary. macOS/Linux only — on other platforms use Docker or the installer.
+
+### Homebrew (macOS / Linux)
+
+```bash
+brew install emgiezet/tap/llmwiki
+```
+
+This taps `emgiezet/homebrew-tap` and installs the latest release binary. Upgrade with `brew upgrade llmwiki`.
+
+### Docker
+
+Multi-arch images (`linux/amd64`, `linux/arm64`) are published to GitHub Container Registry:
+
+```bash
+docker run --rm ghcr.io/emgiezet/llmwiki:latest version
+```
+
+The image runs `git` and ships CA certificates, so change-tracking and HTTPS backends work out of the box. Wiki files default to `/data` inside the container — mount a volume to persist them and bind-mount the project you want to ingest:
+
+```bash
+docker run --rm \
+  -v "$HOME/llmwiki:/data/llmwiki" \
+  -v "$PWD:/work" \
+  -e ANTHROPIC_API_KEY \
+  ghcr.io/emgiezet/llmwiki:latest ingest /work
+```
+
+> The `claude-code` backend isn't available inside the container (it needs the host Claude Code CLI). Use `claude-api` (`ANTHROPIC_API_KEY`) or point `ollama_host` at a reachable Ollama server. The MCP server (`llmwiki mcp`) and read-only commands work with no LLM at all.
+
 ### Updating
 
 `llmwiki` checks GitHub once every 24 hours (cached, non-blocking) and prints a one-line notice on stderr when a newer release exists:

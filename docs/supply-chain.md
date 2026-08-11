@@ -1,6 +1,6 @@
 # Supply Chain Risk Assessment
 
-_Last updated: 2026-04-22_
+_Last updated: 2026-08-11 (dependency audit itself dates from 2026-04-22)_
 
 This document summarizes the results of the pre-release dependency / supply chain
 audit for `llmwiki`. It is generated from:
@@ -15,9 +15,9 @@ audit for `llmwiki`. It is generated from:
 | Tool | Version / Source | Purpose |
 |---|---|---|
 | `cyclonedx-gomod` | latest (installed to `$GOPATH/bin`) | SBOM generation |
-| `osv-scanner` | latest (installed to `$GOPATH/bin`) | CVE lookup against OSV.dev |
+| `osv-scanner` | v2, latest (installed to `$GOPATH/bin`) | CVE lookup against OSV.dev |
 | `go-licenses` | v1.6.0 | License classification |
-| Go toolchain | 1.25.5 (module declares `go 1.23.0`) | Build + `go mod graph` |
+| Go toolchain | 1.26.5 (module pins `go 1.26.5`) | Build + `go mod graph` |
 
 SBOM file: `sbom.cdx.json` (~14 KB, 15 components including the root module).
 
@@ -50,26 +50,36 @@ Pulled in indirectly via graymatter / cobra / testify but worth scrutinising.
 ## Vulnerability scan (OSV)
 
 `osv-scanner` scanned 21 packages. **Zero CVEs were reported against any
-third-party module** in our dependency graph. All advisories surfaced apply to
-the Go standard library because `go.mod` declares `go 1.23.0`:
+third-party module** in our dependency graph. Every advisory it surfaced applied
+to the Go standard library, matched against the `go` directive in `go.mod` (which
+was `go 1.23.0` at the time of the audit):
 
 - 25 advisories against `stdlib@1.23.0` in the "called" table.
 - 13 further "uncalled" stdlib advisories (present in code paths we do not
   import).
 
-### Mitigation
+### Mitigation — current stdlib policy
 
-The local toolchain already builds with Go 1.25.5, so produced binaries are not
-exposed to 1.23.x stdlib CVEs. To make this explicit and silence the scanner:
+The `go` directive pins a full patch release (currently `go 1.26.5`) rather than a
+minor version, so release binaries are built with a toolchain whose stdlib CVEs
+are known-patched. Bump it whenever `govulncheck` reports a reachable stdlib
+advisory.
 
-```go
-// go.mod
-go 1.23.0
-toolchain go1.25.5
-```
+Two scanners cover the stdlib from different angles, and they are wired
+differently on purpose:
 
-Recommended: bump the `go` directive to `1.24` (or later) and the `toolchain`
-to the latest patch release before tagging v1.0.
+- **`govulncheck`** does call-graph reachability analysis, so it only reports
+  advisories our code can actually reach. It is the hard gate. In `security.yml`
+  it runs under `go-version: stable` (the newest release), because stdlib CVEs
+  are patched upstream within days and a toolchain pin would otherwise turn every
+  new advisory into a red weekly scan for something we cannot fix any faster.
+- **`ci.yml`** runs `govulncheck` against the pinned toolchain from `go.mod` with
+  `continue-on-error: true`. That is where an aging pin surfaces — as a warning on
+  the next pull request, not a broken scheduled job.
+- **`osv-scanner`** has no reachability filter and matches stdlib advisories
+  against the `go` directive, which duplicates `govulncheck` and fails on every
+  new Go patch release. `osv-scanner.toml` therefore ignores the `stdlib` package
+  so osv-scanner stays focused on third-party modules.
 
 No fix-version actions are required for third-party packages at this time.
 

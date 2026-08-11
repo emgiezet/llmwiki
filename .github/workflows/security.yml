@@ -54,8 +54,10 @@ jobs:
         run: govulncheck ./...
 
       - name: osv-scanner
-        # stdlib is ignored via osv-scanner.toml — govulncheck above owns it.
-        run: osv-scanner scan source --lockfile=go.mod --config=osv-scanner.toml
+        # v2 ignores the `go` directive by default (it is a minimum language
+        # version, not the build toolchain), so this covers third-party modules
+        # and govulncheck above owns the stdlib. Do not set ScanGoModVersion.
+        run: osv-scanner scan source --lockfile=go.mod
 
       - name: gitleaks
         run: gitleaks detect --source=. --redact --log-opts="--all"

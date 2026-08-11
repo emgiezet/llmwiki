@@ -27,9 +27,9 @@ security-scan:
 	@echo "==> govulncheck"
 	govulncheck ./...
 	@echo "==> osv-scanner"
-	# stdlib findings are ignored via osv-scanner.toml — govulncheck above covers the
-	# standard library with reachability analysis. See docs/supply-chain.md.
-	osv-scanner scan source --lockfile=go.mod --config=osv-scanner.toml
+	# osv-scanner v2 skips the go.mod `go` directive by default; govulncheck above
+	# covers the standard library with reachability analysis. See docs/supply-chain.md.
+	osv-scanner scan source --lockfile=go.mod
 	@echo "==> gitleaks"
 	gitleaks detect --source=. --redact --log-opts="--all"
 

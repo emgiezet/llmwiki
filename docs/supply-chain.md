@@ -76,10 +76,14 @@ differently on purpose:
 - **`ci.yml`** runs `govulncheck` against the pinned toolchain from `go.mod` with
   `continue-on-error: true`. That is where an aging pin surfaces — as a warning on
   the next pull request, not a broken scheduled job.
-- **`osv-scanner`** has no reachability filter and matches stdlib advisories
-  against the `go` directive, which duplicates `govulncheck` and fails on every
-  new Go patch release. `osv-scanner.toml` therefore ignores the `stdlib` package
-  so osv-scanner stays focused on third-party modules.
+- **`osv-scanner`** covers third-party modules. From v2 on it ignores the `go`
+  directive by default, on the same reasoning: the directive is a minimum
+  language version, not the toolchain a binary was built with, so matching
+  advisories against it produces false positives. Leave `ScanGoModVersion` unset
+  — turning it on re-adds stdlib findings with no reachability filter, which is
+  what `govulncheck` is for. Note that osv-scanner **must** be installed from the
+  `github.com/google/osv-scanner/v2/...` path; `@latest` on the pre-v2 path
+  resolves to v1.9.2 (Dec 2024) forever, and v1 does scan the `go` directive.
 
 No fix-version actions are required for third-party packages at this time.
 

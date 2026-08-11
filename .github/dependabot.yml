@@ -1,0 +1,35 @@
+version: 2
+
+# Without this, things rot silently. The security workflow spent 20 months
+# running osv-scanner v1.9.2 because `@latest` on a pre-/v2 module path can
+# never resolve past v1, and nobody had a reason to look.
+#
+# Note that Dependabot does not touch the `go install <tool>@latest` lines in
+# .github/workflows/security.yml — those stay on @latest on purpose, since a
+# tool that breaks loudly on its next run beats one that quietly stops being
+# updated. It also does not bump the `go` directive in go.mod; that is a manual
+# decision driven by govulncheck (see docs/supply-chain.md).
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: main
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: chore
+
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: main
+    groups:
+      go-modules:
+        patterns: ["*"]
+    commit-message:
+      prefix: chore

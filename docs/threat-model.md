@@ -70,7 +70,7 @@ cloud metadata endpoint.
 ## Trust Boundaries
 
 **Inside the boundary:** Go binary code, pinned `graymatter` library, Go
-standard library (on supported toolchain >= 1.25.9).
+standard library (on supported toolchain >= 1.26.5).
 
 **Outside the boundary:** filesystem contents, stdin, environment variables,
 CLI arguments, git output, LLM responses, HTTP responses, YAML and JSON

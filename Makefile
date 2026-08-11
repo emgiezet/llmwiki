@@ -12,7 +12,7 @@ test:
 #   go install honnef.co/go/tools/cmd/staticcheck@latest
 #   go install github.com/securego/gosec/v2/cmd/gosec@latest
 #   go install golang.org/x/vuln/cmd/govulncheck@latest
-#   go install github.com/google/osv-scanner/cmd/osv-scanner@latest
+#   go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest
 #   go install github.com/zricethezav/gitleaks/v8@latest
 security-scan:
 	@echo "==> go vet"
@@ -27,7 +27,9 @@ security-scan:
 	@echo "==> govulncheck"
 	govulncheck ./...
 	@echo "==> osv-scanner"
-	osv-scanner --lockfile=go.mod
+	# stdlib findings are ignored via osv-scanner.toml — govulncheck above covers the
+	# standard library with reachability analysis. See docs/supply-chain.md.
+	osv-scanner scan source --lockfile=go.mod --config=osv-scanner.toml
 	@echo "==> gitleaks"
 	gitleaks detect --source=. --redact --log-opts="--all"
 

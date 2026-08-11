@@ -15,9 +15,9 @@ jobs:
     name: Build & test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -42,6 +42,10 @@ jobs:
           staticcheck ./...
 
       - name: govulncheck (soft — warn only)
+        # This runs under the toolchain pinned in go.mod, so it is where an aging
+        # pin shows up. Soft on purpose: a fresh stdlib CVE should warn on the
+        # next PR, not block unrelated work. The hard gate in security.yml scans
+        # under the newest Go release instead.
         continue-on-error: true
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest

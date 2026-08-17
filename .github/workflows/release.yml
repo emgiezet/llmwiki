@@ -46,7 +46,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: echo "GORELEASER_CURRENT_TAG=${{ github.event.inputs.tag }}" >> $GITHUB_ENV
 
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: "~> v2"

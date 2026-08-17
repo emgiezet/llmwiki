@@ -3,7 +3,26 @@ package config
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/emgiezet/llmwiki/internal/validation"
 )
+
+// DefaultKnowledgeLayer is the layer every project consults when no
+// `knowledge:` list is configured at any level.
+const DefaultKnowledgeLayer = "global"
+
+// ValidateKnowledge checks every knowledge layer name is a safe single path
+// component — the names are joined onto <wiki_root>/knowledge/ so a traversal
+// value would escape the wiki root. A nil/empty list is valid (Merge fills in
+// DefaultKnowledgeLayer).
+func ValidateKnowledge(layers []string) error {
+	for _, l := range layers {
+		if err := validation.NameComponent("knowledge layer", l); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // ValidateMemoryMode returns an error if mode is not one of the known values.
 // Empty string is allowed; it resolves to MemoryModeProject in Merge.

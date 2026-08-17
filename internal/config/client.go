@@ -32,6 +32,9 @@ type ClientConfig struct {
 	Links  LinksConfig   `yaml:"links,omitempty"`
 	Team   TeamConfig    `yaml:"team,omitempty"`
 	Cost   CostConfig    `yaml:"cost,omitempty"`
+	// Knowledge lets a customer set the default knowledge layers for all of
+	// its projects, most specific first. Projects replace this list wholesale.
+	Knowledge []string `yaml:"knowledge,omitempty"`
 }
 
 // LoadClientConfig looks up the per-customer config file. Returns a
@@ -63,6 +66,9 @@ func LoadClientConfig(customer string) (ClientConfig, error) {
 		return cfg, fmt.Errorf("client config for %q: %w", customer, err)
 	}
 	if err := ValidateCost(cfg.Cost); err != nil {
+		return cfg, fmt.Errorf("client config for %q: %w", customer, err)
+	}
+	if err := ValidateKnowledge(cfg.Knowledge); err != nil {
 		return cfg, fmt.Errorf("client config for %q: %w", customer, err)
 	}
 	for _, w := range ValidateLinks(cfg.Links) {

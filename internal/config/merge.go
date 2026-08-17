@@ -97,6 +97,20 @@ func Merge(g GlobalConfig, c ClientConfig, p ProjectConfig) Merged {
 		m.LocalDocsDir = p.LocalDocsDir
 	}
 
+	// Knowledge layers: slice replacement (non-empty wins, no concat), same
+	// rule as Extraction.Sections. A project that wants a different lookup
+	// order restates the whole list.
+	m.Knowledge = []string{DefaultKnowledgeLayer}
+	if len(g.Knowledge) > 0 {
+		m.Knowledge = g.Knowledge
+	}
+	if len(c.Knowledge) > 0 {
+		m.Knowledge = c.Knowledge
+	}
+	if len(p.Knowledge) > 0 {
+		m.Knowledge = p.Knowledge
+	}
+
 	return m
 }
 

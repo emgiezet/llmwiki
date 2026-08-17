@@ -50,6 +50,10 @@ type GlobalConfig struct {
 	// which is why they live in the global config rather than the org-wide
 	// client config. See LoadGlobalConfig for the built-in defaults.
 	Extractors map[string]string `yaml:"extractors,omitempty"`
+	// Knowledge lists the knowledge layers every project sees by default,
+	// most specific first. Each name is a directory under
+	// <wiki_root>/knowledge/. Empty defaults to ["global"] in Merge.
+	Knowledge []string `yaml:"knowledge,omitempty"`
 }
 
 type ProjectConfig struct {
@@ -75,6 +79,10 @@ type ProjectConfig struct {
 	// extension. Merged key-by-key on top of the global defaults — set only
 	// the extensions you want to change.
 	Extractors map[string]string `yaml:"extractors,omitempty"`
+	// Knowledge lists the knowledge layers this project consults, most
+	// specific first (e.g. [acme, platform-team, global]). Replaces the
+	// client/global list rather than appending to it.
+	Knowledge []string `yaml:"knowledge,omitempty"`
 }
 
 // ProjectStatus classifies where a project sits in its lifecycle. It
@@ -161,6 +169,10 @@ type Merged struct {
 	Links  LinksConfig
 	Team   TeamConfig
 	Cost   CostConfig
+	// Knowledge is the resolved knowledge-layer lookup order, most specific
+	// first. Never empty — defaults to ["global"]. Each entry is a directory
+	// name under <WikiRoot>/knowledge/.
+	Knowledge []string
 	// Source tracks, per field, whether the merged value came from the
 	// client baseline. The wiki renderer uses this to annotate inherited
 	// values with "*(inherited from client)*" so users can tell project-
@@ -226,6 +238,9 @@ func LoadGlobalConfig(path string) (GlobalConfig, error) {
 	if err := ValidateMemoryMode(cfg.MemoryMode); err != nil {
 		return cfg, fmt.Errorf("~/.llmwiki/config.yaml: %w", err)
 	}
+	if err := ValidateKnowledge(cfg.Knowledge); err != nil {
+		return cfg, fmt.Errorf("~/.llmwiki/config.yaml: %w", err)
+	}
 	return cfg, nil
 }
 
@@ -251,6 +266,9 @@ func LoadProjectConfig(projectDir string) (ProjectConfig, error) {
 		return cfg, fmt.Errorf("llmwiki.yaml: %w", err)
 	}
 	if err := ValidateCost(cfg.Cost); err != nil {
+		return cfg, fmt.Errorf("llmwiki.yaml: %w", err)
+	}
+	if err := ValidateKnowledge(cfg.Knowledge); err != nil {
 		return cfg, fmt.Errorf("llmwiki.yaml: %w", err)
 	}
 	for _, w := range ValidateLinks(cfg.Links) {

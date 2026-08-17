@@ -24,6 +24,8 @@ func NewIngestCmd() *cobra.Command {
 	var sectionsFlag []string
 	var maxTokens int
 	var statusFlag string
+	var layer string
+	var topic string
 
 	cmd := &cobra.Command{
 		Use:   "ingest <path>",
@@ -32,6 +34,16 @@ func NewIngestCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := validation.NameComponentOptional("service", service); err != nil {
 				return err
+			}
+			// Validate before any LLM/memory setup so a typo fails instantly.
+			if err := validation.NameComponentOptional("knowledge layer", layer); err != nil {
+				return err
+			}
+			if err := validation.NameComponentOptional("topic", topic); err != nil {
+				return err
+			}
+			if layer != "" && service != "" {
+				return fmt.Errorf("--layer and --service are mutually exclusive: knowledge layers have no services")
 			}
 
 			projectDir, err := filepath.Abs(args[0])
@@ -108,6 +120,20 @@ func NewIngestCmd() *cobra.Command {
 
 			projectName := filepath.Base(projectDir)
 
+			if layer != "" {
+				cfg.Extraction = knowledgeExtraction(cfg)
+				fmt.Fprintf(os.Stderr, "Ingesting %s into knowledge layer %q...\n", projectName, layer)
+				if err := ingestion.IngestKnowledge(cmd.Context(), projectDir, layer, topic, cfg, l); err != nil {
+					return err
+				}
+				name := topic
+				if name == "" {
+					name = projectName
+				}
+				fmt.Fprintf(os.Stderr, "Done. Knowledge updated at %s\n", ingestion.KnowledgeFilePath(cfg.WikiRoot, layer, name))
+				return nil
+			}
+
 			if service != "" {
 				serviceDir := filepath.Join(projectDir, service)
 				if _, err := os.Stat(serviceDir); err != nil {
@@ -178,5 +204,20 @@ func NewIngestCmd() *cobra.Command {
 	cmd.Flags().StringSliceVar(&sectionsFlag, "sections", nil, "Comma-separated section IDs to extract — overrides llmwiki.yaml and --preset")
 	cmd.Flags().IntVar(&maxTokens, "max-tokens", 0, "Cap LLM output tokens per call (0 = backend default)")
 	cmd.Flags().StringVar(&statusFlag, "status", "", "Project lifecycle status (production|poc|discovery) — overrides llmwiki.yaml")
+	cmd.Flags().StringVar(&layer, "layer", "", "Ingest into a knowledge layer (<wiki_root>/knowledge/<layer>/) instead of as a project")
+	cmd.Flags().StringVar(&topic, "topic", "", "Knowledge entry name (default: source directory name); requires --layer")
 	return cmd
+}
+
+// knowledgeExtraction adapts the resolved extraction config for a knowledge
+// ingest. Company docs, notes, and transcripts aren't code, so when nothing is
+// configured we default to the prose-oriented `notes` preset instead of the
+// code-oriented `default` one. An explicit preset, section list, or status is
+// left untouched — ResolveSections handles those.
+func knowledgeExtraction(cfg config.Merged) config.ExtractionConfig {
+	out := cfg.Extraction
+	if out.Preset == "" && len(out.Sections) == 0 && cfg.Status == "" {
+		out.Preset = "notes"
+	}
+	return out
 }

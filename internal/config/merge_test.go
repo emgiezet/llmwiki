@@ -186,3 +186,58 @@ func TestMerge_EndToEnd_WithClientYAML(t *testing.T) {
 	assert.Equal(t, "acme", merged.Customer)
 	assert.Equal(t, "/wiki", merged.WikiRoot)
 }
+
+func TestMerge_KnowledgePrecedence(t *testing.T) {
+	cases := []struct {
+		name    string
+		global  []string
+		client  []string
+		project []string
+		want    []string
+	}{
+		{"all empty — defaults to global layer", nil, nil, nil, []string{"global"}},
+		{"global only", []string{"global", "eng"}, nil, nil, []string{"global", "eng"}},
+		{"client replaces global", []string{"global"}, []string{"acme", "global"}, nil, []string{"acme", "global"}},
+		{"project replaces both", []string{"global"}, []string{"acme"}, []string{"team", "global"}, []string{"team", "global"}},
+		{"empty slice at project falls through", []string{"global", "eng"}, nil, []string{}, []string{"global", "eng"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := config.Merge(
+				config.GlobalConfig{Knowledge: tc.global},
+				config.ClientConfig{Knowledge: tc.client},
+				config.ProjectConfig{Knowledge: tc.project},
+			)
+			assert.Equal(t, tc.want, got.Knowledge)
+		})
+	}
+}
+
+func TestValidateKnowledge_RejectsUnsafeLayerNames(t *testing.T) {
+	require.NoError(t, config.ValidateKnowledge(nil))
+	require.NoError(t, config.ValidateKnowledge([]string{"global", "platform-team", "acme.eu"}))
+
+	for _, bad := range []string{"..", ".", "", "../etc", "a/b", `a\b`, ".hidden", "with space"} {
+		assert.Error(t, config.ValidateKnowledge([]string{bad}), "layer %q must be rejected", bad)
+	}
+}
+
+func TestLoadProjectConfig_RejectsUnsafeKnowledgeLayer(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "llmwiki.yaml"),
+		[]byte("knowledge:\n  - ../../etc\n"), 0644))
+
+	_, err := config.LoadProjectConfig(dir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "knowledge layer")
+}
+
+func TestLoadProjectConfig_ParsesKnowledgeLayers(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "llmwiki.yaml"),
+		[]byte("knowledge: [acme, platform-team, global]\n"), 0644))
+
+	cfg, err := config.LoadProjectConfig(dir)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"acme", "platform-team", "global"}, cfg.Knowledge)
+}

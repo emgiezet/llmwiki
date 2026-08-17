@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/emgiezet/llmwiki/internal/config"
 	"github.com/emgiezet/llmwiki/internal/memory"
@@ -17,6 +18,7 @@ import (
 func NewContextCmd() *cobra.Command {
 	var inject string
 	var service string
+	var noKnowledge bool
 
 	cmd := &cobra.Command{
 		Use:   "context <project>",
@@ -44,8 +46,24 @@ func NewContextCmd() *cobra.Command {
 				projectDir, _ = os.Getwd()
 			}
 
+			// Load the project (and its client baseline) so the per-project
+			// `knowledge:` layer list applies. Missing files are not errors.
+			project, err := config.LoadProjectConfig(projectDir)
+			if err != nil {
+				return fmt.Errorf("load project config: %w", err)
+			}
+			client, err := config.LoadClientConfig(project.Customer)
+			if err != nil {
+				return fmt.Errorf("load client config: %w", err)
+			}
+			cfg := config.Merge(global, client, project)
+
+			layers := cfg.Knowledge
+			if noKnowledge {
+				layers = nil
+			}
+
 			// Initialize memory store if enabled.
-			cfg := config.Merge(global, config.ClientConfig{}, config.ProjectConfig{})
 			var mem *memory.Store
 			if cfg.MemoryEnabled {
 				mem, err = memory.NewForProject(cfg, projectDir)
@@ -55,7 +73,7 @@ func NewContextCmd() *cobra.Command {
 				defer mem.Close()
 			}
 
-			ctx, err := buildContextOutput(global.WikiRoot, projectName, service, mem)
+			ctx, err := buildContextOutput(global.WikiRoot, projectName, service, mem, layers)
 			if err != nil {
 				return err
 			}
@@ -69,10 +87,65 @@ func NewContextCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&inject, "inject", "", "Inject into file, replacing <!-- llmwiki:start --> ... <!-- llmwiki:end --> markers")
 	cmd.Flags().StringVar(&service, "service", "", "Output context for a specific service only")
+	cmd.Flags().BoolVar(&noKnowledge, "no-knowledge", false, "Omit knowledge layers, printing only project context")
 	return cmd
 }
 
-func buildContextOutput(wikiRoot, projectName, service string, mem *memory.Store) (string, error) {
+// Budgets for the knowledge appended to context output. CLAUDE.md injection
+// competes with everything else in the agent's context window, so both a
+// per-entry and a total cap apply.
+const (
+	knowledgeEntryMaxChars = 1500
+	knowledgeTotalMaxChars = 6000
+)
+
+// knowledgeContextSections are the summary-ish sections preferred when a
+// knowledge entry has them (ingest-generated entries do, via the `notes` and
+// `research` presets).
+var knowledgeContextSections = []string{"## Summary", "## Key Topics", "## Key Points / Findings"}
+
+// renderKnowledgeContext renders the knowledge layers for context injection.
+// Each entry is headed by "## Knowledge: <layer>/<topic>", which is what tells
+// the agent which layer the content came from.
+//
+// Layers are read in the given (priority) order and the total budget is spent
+// most-specific-first, so when it runs out it's the least specific layer that
+// gets dropped.
+func renderKnowledgeContext(store *wiki.Store, layers []string) string {
+	if len(layers) == 0 {
+		return ""
+	}
+	// A malformed layer name shouldn't kill context generation for the rest,
+	// so read layer by layer and skip the ones that error.
+	var out strings.Builder
+	total := 0
+	for _, layer := range layers {
+		entries, err := store.SearchKnowledge([]string{layer}, "")
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if total >= knowledgeTotalMaxChars {
+				return out.String()
+			}
+			// Prefer the summary sections; hand-authored files have arbitrary
+			// headings, so fall back to the whole body.
+			text := wiki.ExtractSections(e.Body, knowledgeContextSections)
+			if strings.TrimSpace(text) == "" {
+				text = e.Body
+			}
+			text = strings.TrimSpace(wiki.TruncateSection(text, knowledgeEntryMaxChars))
+			if text == "" {
+				continue
+			}
+			fmt.Fprintf(&out, "\n## Knowledge: %s/%s\n\n%s\n", e.Layer, e.Topic, text)
+			total += len(text)
+		}
+	}
+	return out.String()
+}
+
+func buildContextOutput(wikiRoot, projectName, service string, mem *memory.Store, layers []string) (string, error) {
 	if service != "" {
 		patterns := []string{
 			filepath.Join(wikiRoot, "clients", "*", projectName, service+".md"),
@@ -93,6 +166,7 @@ func buildContextOutput(wikiRoot, projectName, service string, mem *memory.Store
 				if recalled, _ := mem.RecallForContext(context.Background(), projectName, entry.Meta.Customer); recalled != "" {
 					output += recalled
 				}
+				output += renderKnowledgeContext(wiki.NewStore(wikiRoot), layers)
 				return output, nil
 			}
 		}
@@ -125,6 +199,7 @@ func buildContextOutput(wikiRoot, projectName, service string, mem *memory.Store
 			if recalled, _ := mem.RecallForContext(context.Background(), projectName, entry.Meta.Customer); recalled != "" {
 				output += recalled
 			}
+			output += renderKnowledgeContext(wiki.NewStore(wikiRoot), layers)
 			return output, nil
 		}
 	}

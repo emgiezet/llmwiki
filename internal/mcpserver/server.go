@@ -5,6 +5,7 @@ package mcpserver
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/emgiezet/llmwiki/internal/version"
 	"github.com/emgiezet/llmwiki/internal/wiki"
@@ -49,6 +50,47 @@ type GetOutput struct {
 	Service  string `json:"service,omitempty"`
 	Content  string `json:"content"`
 }
+
+// KnowledgeSearchInput is the argument schema for the search_knowledge tool.
+// Both filters are optional: omit both to list every knowledge entry in every
+// layer, which is also how an agent discovers which layers exist.
+type KnowledgeSearchInput struct {
+	Query string `json:"query,omitempty" jsonschema:"case-insensitive substring to match against the topic, title and body"`
+	Layer string `json:"layer,omitempty" jsonschema:"restrict to one knowledge layer (e.g. global, platform-team); omit to search every layer"`
+}
+
+// KnowledgeInfo is one knowledge entry in a search result. Layer is the
+// attribution: it says which layer of the knowledge base this came from.
+type KnowledgeInfo struct {
+	Layer   string `json:"layer"`
+	Topic   string `json:"topic"`
+	Title   string `json:"title,omitempty"`
+	Path    string `json:"path"`
+	Snippet string `json:"snippet,omitempty"`
+}
+
+// KnowledgeSearchOutput is the result schema for the search_knowledge tool.
+type KnowledgeSearchOutput struct {
+	Entries []KnowledgeInfo `json:"entries"`
+	Count   int             `json:"count"`
+}
+
+// KnowledgeGetInput is the argument schema for the get_knowledge tool.
+type KnowledgeGetInput struct {
+	Topic string `json:"topic" jsonschema:"knowledge entry name (the markdown file name without .md)"`
+	Layer string `json:"layer,omitempty" jsonschema:"layer to look in; omit to search every layer for the topic"`
+}
+
+// KnowledgeGetOutput is the result schema for the get_knowledge tool.
+type KnowledgeGetOutput struct {
+	Layer   string `json:"layer"`
+	Topic   string `json:"topic"`
+	Title   string `json:"title,omitempty"`
+	Content string `json:"content"`
+}
+
+// knowledgeSnippetMaxChars bounds the preview returned per search hit.
+const knowledgeSnippetMaxChars = 600
 
 // Handlers holds the tool handlers, backed by a wiki.Store.
 type Handlers struct {
@@ -95,6 +137,64 @@ func (h *Handlers) Get(_ context.Context, _ *mcp.CallToolRequest, in GetInput) (
 	}, nil
 }
 
+// resolveLayers returns the layers to read: the one requested, or every layer
+// present on disk when none was named.
+func (h *Handlers) resolveLayers(layer string) ([]string, error) {
+	if layer != "" {
+		return []string{layer}, nil
+	}
+	return h.store.ListKnowledgeLayers()
+}
+
+// SearchKnowledge implements the search_knowledge tool.
+func (h *Handlers) SearchKnowledge(_ context.Context, _ *mcp.CallToolRequest, in KnowledgeSearchInput) (*mcp.CallToolResult, KnowledgeSearchOutput, error) {
+	layers, err := h.resolveLayers(in.Layer)
+	if err != nil {
+		return nil, KnowledgeSearchOutput{}, err
+	}
+	found, err := h.store.SearchKnowledge(layers, in.Query)
+	if err != nil {
+		return nil, KnowledgeSearchOutput{}, err
+	}
+	entries := make([]KnowledgeInfo, len(found))
+	for i, e := range found {
+		entries[i] = KnowledgeInfo{
+			Layer:   e.Layer,
+			Topic:   e.Topic,
+			Title:   e.Title,
+			Path:    e.Path,
+			Snippet: wiki.TruncateSection(e.Body, knowledgeSnippetMaxChars),
+		}
+	}
+	return nil, KnowledgeSearchOutput{Entries: entries, Count: len(entries)}, nil
+}
+
+// GetKnowledge implements the get_knowledge tool.
+func (h *Handlers) GetKnowledge(_ context.Context, _ *mcp.CallToolRequest, in KnowledgeGetInput) (*mcp.CallToolResult, KnowledgeGetOutput, error) {
+	layers, err := h.resolveLayers(in.Layer)
+	if err != nil {
+		return nil, KnowledgeGetOutput{}, err
+	}
+	var lastErr error
+	for _, l := range layers {
+		entry, getErr := h.store.GetKnowledge(l, in.Topic)
+		if getErr != nil {
+			lastErr = getErr
+			continue
+		}
+		return nil, KnowledgeGetOutput{
+			Layer:   entry.Layer,
+			Topic:   entry.Topic,
+			Title:   entry.Title,
+			Content: entry.Body,
+		}, nil
+	}
+	if lastErr != nil {
+		return nil, KnowledgeGetOutput{}, lastErr
+	}
+	return nil, KnowledgeGetOutput{}, fmt.Errorf("no knowledge entry %q in any layer", in.Topic)
+}
+
 // New builds an MCP server exposing the search_projects and get_project tools.
 func New(store *wiki.Store) *mcp.Server {
 	h := NewHandlers(store)
@@ -107,6 +207,14 @@ func New(store *wiki.Store) *mcp.Server {
 		Name:        "get_project",
 		Description: "Fetch the full extracted wiki content for a single project, or for a specific service within a multi-service project.",
 	}, h.Get)
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "search_knowledge",
+		Description: "Search the knowledge layers — org-wide, department or client knowledge that is not tied to a single project (standards, decisions, processes, glossaries). Filter by query and/or layer (both optional). Every result names the layer it came from. Call with no arguments to list all entries and discover which layers exist.",
+	}, h.SearchKnowledge)
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "get_knowledge",
+		Description: "Fetch the full content of a single knowledge entry by topic. Omit the layer to search every layer for that topic.",
+	}, h.GetKnowledge)
 	return srv
 }
 

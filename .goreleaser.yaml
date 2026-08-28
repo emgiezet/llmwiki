@@ -85,8 +85,12 @@ brews:
     commit_author:
       name: goreleaser-bot
       email: goreleaser-bot@users.noreply.github.com
-    # Don't auto-publish formulas for prereleases (rc/beta tags).
-    skip_upload: auto
+    # Skip publishing for prereleases (rc/beta tags) AND when the tap token
+    # secret isn't configured — a missing secret reaches goreleaser as an
+    # empty env var, and pushing without it would fail the whole release
+    # after the tag + GitHub Release already exist. Once the tap repo and
+    # HOMEBREW_TAP_TOKEN secret exist, uploads start working with no change.
+    skip_upload: '{{ if or .Prerelease (eq .Env.HOMEBREW_TAP_TOKEN "") }}true{{ end }}'
     install: |
       bin.install "llmwiki"
     test: |

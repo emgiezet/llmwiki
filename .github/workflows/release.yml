@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write # upload release assets
+  packages: write # push container images to GHCR
 
 jobs:
   test:
@@ -46,6 +47,16 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: echo "GORELEASER_CURRENT_TAG=${{ github.event.inputs.tag }}" >> $GITHUB_ENV
 
+      # Needed for the multi-arch (linux/amd64 + linux/arm64) container builds.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
@@ -53,3 +64,34 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PAT with contents:write on emgiezet/homebrew-tap. If the secret is
+          # absent the brews step errors; create the tap repo + secret first.
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+  npm-publish:
+    name: Publish npm wrapper
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      # Exposed at job level so the publish step's `if` can test for it.
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+      - name: Test wrapper
+        working-directory: npm
+        run: node --test test/*.test.js
+      - name: Publish to npm (skipped when NPM_TOKEN is unset)
+        if: ${{ env.NPM_TOKEN != '' }}
+        working-directory: npm
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          npm version "${TAG#v}" --no-git-tag-version --allow-same-version
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

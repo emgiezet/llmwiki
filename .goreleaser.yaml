@@ -41,6 +41,61 @@ checksum:
   name_template: checksums.txt
   algorithm: sha256
 
+# Multi-arch container images published to GitHub Container Registry.
+# dockers_v2 builds linux/amd64 + linux/arm64 in one buildx pass and pushes a
+# single multi-arch manifest per tag (:<version> and :latest). The Dockerfile
+# copies from $TARGETPLATFORM/llmwiki — goreleaser lays the per-platform
+# binaries out under that path in the build context.
+dockers_v2:
+  - id: llmwiki
+    ids: [llmwiki]
+    dockerfile: Dockerfile.goreleaser
+    images:
+      - "ghcr.io/emgiezet/llmwiki"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    tags:
+      - "{{ .Version }}"
+      # latest only for stable releases, never rc/beta prereleases.
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    labels:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.description: "Turn any codebase into a living, LLM-maintained wiki"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.source: "https://github.com/emgiezet/llmwiki"
+      org.opencontainers.image.licenses: "MIT"
+
+# Homebrew formula auto-committed to the emgiezet/homebrew-tap repo on each
+# release. Requires a HOMEBREW_TAP_TOKEN secret (PAT with `contents:write` on
+# the tap repo) — GITHUB_TOKEN cannot push to a different repository.
+brews:
+  - name: llmwiki
+    ids: [default]
+    repository:
+      owner: emgiezet
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/emgiezet/llmwiki"
+    description: "Turn any codebase into a living, LLM-maintained wiki"
+    license: "MIT"
+    commit_author:
+      name: goreleaser-bot
+      email: goreleaser-bot@users.noreply.github.com
+    # Skip publishing for prereleases (rc/beta tags) AND when the tap token
+    # secret isn't configured — a missing secret reaches goreleaser as an
+    # empty env var, and pushing without it would fail the whole release
+    # after the tag + GitHub Release already exist. Once the tap repo and
+    # HOMEBREW_TAP_TOKEN secret exist, uploads start working with no change.
+    skip_upload: '{{ if or .Prerelease (eq .Env.HOMEBREW_TAP_TOKEN "") }}true{{ end }}'
+    install: |
+      bin.install "llmwiki"
+    test: |
+      system "#{bin}/llmwiki", "version"
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 

@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="470" viewBox="0 0 820 470" font-family="'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace" font-size="15">
+  <defs>
+    <style>
+      text { fill:#c9d1d9; }   /* output            */
+      .g  { fill:#3fb950; }    /* prompt / success  */
+      .b  { fill:#58a6ff; }    /* paths / accents   */
+      .y  { fill:#d29922; }    /* command           */
+      .m  { fill:#8b949e; }    /* comments / dim     */
+      .w  { fill:#f0f6fc; font-weight:600; }
+    </style>
+  </defs>
+
+  <!-- window chrome -->
+  <rect x="0.5" y="0.5" width="819" height="469" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <rect x="0.5" y="0.5" width="819" height="38" rx="10" fill="#161b22"/>
+  <rect x="0.5" y="28" width="819" height="11" fill="#161b22"/>
+  <circle cx="24" cy="19" r="6" fill="#ff5f56"/>
+  <circle cx="46" cy="19" r="6" fill="#ffbd2e"/>
+  <circle cx="68" cy="19" r="6" fill="#27c93f"/>
+  <text x="410" y="24" text-anchor="middle" class="m" font-size="13">llmwiki — zero install, just npx</text>
+
+  <!-- body: each colored segment is absolutely positioned so it renders the
+       same in browsers and rasterizers (no reliance on tspan text flow) -->
+  <text x="22"  y="74"  class="g">$</text>
+  <text x="40"  y="74"  class="y">npx llmwiki ingest ~/workspace/billing-api</text>
+
+  <text x="22"  y="98"  class="m">llmwiki: downloading llmwiki_2.6.0_linux_amd64.tar.gz (v2.6.0)</text>
+  <text x="22"  y="120">Ingesting</text>
+  <text x="112" y="120" class="w">billing-api</text>
+  <text x="211" y="120">into ~/llmwiki/wiki...</text>
+  <text x="22"  y="142" class="g">Done.</text>
+  <text x="76"  y="142">Wiki updated at ~/llmwiki/wiki</text>
+
+  <text x="22"  y="180" class="g">$</text>
+  <text x="40"  y="180" class="y">llmwiki check</text>
+  <text x="22"  y="202" class="g">✓</text>
+  <text x="40"  y="202">billing-api — fresh (matches HEAD)</text>
+
+  <text x="22"  y="240" class="g">$</text>
+  <text x="40"  y="240" class="y">cat ~/llmwiki/wiki/clients/acme/billing-api.md</text>
+  <text x="22"  y="264" class="m">---</text>
+  <text x="22"  y="286">name:</text>
+  <text x="76"  y="286" class="w">billing-api</text>
+  <text x="184" y="286">customer:</text>
+  <text x="274" y="286" class="b">acme</text>
+  <text x="328" y="286">type: client</text>
+  <text x="22"  y="308">tags: [go, rest, postgres, kafka, stripe]</text>
+  <text x="22"  y="330" class="m">---</text>
+  <text x="22"  y="354" class="b">## Architecture</text>
+  <text x="22"  y="376">flowchart LR</text>
+  <text x="42"  y="398">GW[API Gateway] --&gt; BILL[billing-api] --&gt; DB[(Postgres)]</text>
+  <text x="42"  y="420">BILL --&gt; Q[[Kafka]]    BILL --&gt; PAY{{Stripe}}</text>
+
+  <text x="22"  y="452" class="g">$</text>
+  <text x="40"  y="452" class="b">▍</text>
+</svg>

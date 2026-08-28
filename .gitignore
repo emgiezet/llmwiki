@@ -47,3 +47,9 @@ docs/superpowers/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local AI-tooling state (machine-specific paths, session data)
+.claude/
+.serena/
+.mcp.json
+docs/launch-kit.md

@@ -1,0 +1,23 @@
+# Image built by goreleaser from a pre-compiled, statically linked binary.
+# See the `dockers:` block in .goreleaser.yaml — goreleaser drops the matching
+# `llmwiki` binary into the build context, so there is no `go build` here.
+#
+# Alpine (not scratch) because llmwiki shells out to `git` for change tracking
+# and needs CA certificates for HTTPS calls (claude-api, ollama, update check).
+FROM alpine:3.21
+
+RUN apk add --no-cache git ca-certificates
+
+# goreleaser dockers_v2 lays each platform's binary out under $TARGETPLATFORM/
+# (e.g. linux/amd64/llmwiki) in the build context. TARGETPLATFORM is provided
+# automatically by buildx.
+ARG TARGETPLATFORM
+COPY ${TARGETPLATFORM}/llmwiki /usr/local/bin/llmwiki
+
+# Wiki files default to ~/llmwiki/wiki; mount a volume here to persist them.
+ENV HOME=/data
+WORKDIR /data
+VOLUME ["/data"]
+
+ENTRYPOINT ["/usr/local/bin/llmwiki"]
+CMD ["--help"]

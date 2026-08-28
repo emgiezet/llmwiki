@@ -4,6 +4,36 @@ Supported AI coding tools and session-capture hooks, plus Obsidian and NanoClaw.
 
 [← Back to README](../README.md)
 
+## MCP Server
+
+`llmwiki mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio, so agents (Claude Code and others) can query the knowledge base llmwiki has already extracted — no LLM call, just fast file reads. Unlike `query`, the results are deterministic structured data.
+
+Add it to your `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "llmwiki": { "command": "llmwiki", "args": ["mcp"] }
+  }
+}
+```
+
+It exposes two tools:
+
+| Tool | Arguments | Returns |
+|------|-----------|---------|
+| `search_projects` | `client?`, `project?` (both optional) | Matching projects with metadata, tags and a short domain summary |
+| `get_project` | `project`, `client?`, `service?` | The full extracted wiki content for a project (or a single service) |
+
+Filter semantics for `search_projects` (both filters optional, case-insensitive):
+
+- no filters → every tracked project
+- `client` only → all projects for that customer (exact match)
+- `project` only → projects whose name contains the term (substring), across all clients
+- both → the intersection
+
+`get_project` resolves a single project; pass `client` to disambiguate when several projects share a name, and `service` to fetch one service of a multi-service project. Use `--wiki-root <dir>` to point at a wiki other than the configured default.
+
 ## Supported AI coding tools
 
 llmwiki supports seven LLM backends and five hook-based session-capture integrations:

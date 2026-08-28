@@ -27,6 +27,10 @@ ollama_model: llama3.2
 output_mode: central        # central (default) | local | both
 local_docs_dir: docs/llmwiki
 
+# Knowledge layers this project consults, most specific first
+# (see "Knowledge layers" below). Default: [global]
+knowledge: [acme, platform-team, global]
+
 # External systems for MCP-connected AI agents to crawl and for humans to click.
 # Any key is allowed; well-known ones (github/gitlab/jira/confluence/slack/…)
 # get nicer rendering. Project keys override client keys one at a time.
@@ -72,6 +76,9 @@ cost:
 extraction:
   preset: software
   max_tokens: 4000
+
+# Knowledge layers for every project of this client, most specific first.
+knowledge: [acme, global]
 ```
 
 Inspect the effective config for any project with:
@@ -90,6 +97,10 @@ anthropic_api_key: ""   # or set ANTHROPIC_API_KEY env var
 memory_enabled: false   # enable graymatter persistent memory
 memory_mode: project    # project (default) | global — see Memory section
 memory_dir: ~/.llmwiki/memory   # used when memory_mode: global
+
+# Knowledge layers every project consults by default, most specific first.
+# See "Knowledge layers" below. Default: [global]
+knowledge: [global]
 
 # Optional PATH overrides for agentic-coder CLIs (empty = look up by name):
 claude_binary_path: ""
@@ -145,6 +156,83 @@ local_docs_dir: docs/llmwiki   # where local docs land (default)
 - `central` — existing behaviour, wiki only in `~/llmwiki/wiki/`
 - `local` — wiki only inside `<project>/<local_docs_dir>/`
 - `both` — written to both locations
+
+## Knowledge layers
+
+Projects aren't the only thing worth documenting. Company standards, department
+processes, architecture decisions, and glossaries belong to no single repo — so
+they live on a second axis, under `<wiki_root>/knowledge/<layer>/`:
+
+```
+wiki/
+├── knowledge/global/*.md          # company-wide
+├── knowledge/platform-team/*.md   # a department or team
+├── knowledge/acme/*.md            # a client's own knowledge
+├── clients/acme/billing.md        # the project axis, unchanged
+└── _index.md                      # projects only
+```
+
+A layer is just a directory name — there is no registry to update. Each project
+declares which layers it consults, **most specific first**; that order is the
+lookup priority:
+
+```yaml
+# llmwiki.yaml
+knowledge: [acme, platform-team, global]
+```
+
+The list resolves like every other setting (project overrides client overrides
+global) and defaults to `[global]`. It replaces rather than appends, so a project
+that wants a different order restates the whole list. Use `--no-knowledge` on
+`llmwiki context` to leave knowledge out of a particular run.
+
+### Adding knowledge
+
+Two ways in, and they mix freely:
+
+**Write the file.** Anything you drop in a layer is searchable immediately — no
+index to rebuild, front matter optional:
+
+```bash
+mkdir -p ~/llmwiki/wiki/knowledge/global
+$EDITOR ~/llmwiki/wiki/knowledge/global/auth-standard.md
+```
+
+**Ingest a folder.** Runs the normal scan → LLM → write pipeline, including
+[document extraction](#non-code-projects--document-extraction) for PDFs, DOCX,
+and transcripts. Defaults to the prose-oriented `notes` preset rather than the
+code-oriented one:
+
+```bash
+llmwiki ingest ~/Documents/company-handbook --layer global
+llmwiki ingest ./meeting-notes --layer platform-team --topic q3-planning
+```
+
+`--topic` names the entry (default: the source directory name).
+
+### Sharing a layer with your team
+
+Because layers are read by walking the filesystem rather than from `_index.md`,
+a layer can be a git repository or submodule with no extra configuration:
+
+```bash
+git -C ~/llmwiki/wiki submodule add git@github.com:acme/eng-handbook.git knowledge/global
+```
+
+Everyone on the team gets the same `global` layer, reviewed through pull requests
+like code, while their project entries stay local and private.
+
+### How agents see it
+
+- `llmwiki context <project>` appends each layer's entries after the project
+  content, under `## Knowledge: <layer>/<topic>` headings — the heading tells the
+  agent which layer a statement came from. Bounded per entry and in total so
+  CLAUDE.md injection stays small.
+- `llmwiki query` picks knowledge up automatically.
+- The MCP server (`llmwiki mcp`) exposes `search_knowledge` and `get_knowledge`.
+  Every result carries its `layer`, and calling `search_knowledge` with no
+  arguments lists everything — which is also how an agent discovers what layers
+  exist.
 
 ## LLM backends
 

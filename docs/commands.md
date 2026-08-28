@@ -21,7 +21,8 @@ Full command reference, plus where files land and how freshness tracking works.
 | `materialize <project>` | Rebuild wiki from accumulated memory facts (~10× cheaper than ingest) |
 | `list` | List all tracked projects |
 | `context <project>` | Print wiki context (pipe into CLAUDE.md) |
-| `query "<question>"` | Ask a question across all wiki entries |
+| `query "<question>"` | Ask a question across all wiki entries (LLM-backed) |
+| `mcp` | Run an MCP server exposing the wiki to agents over stdio (see [Integrations](integrations.md#mcp-server)) |
 | `docs <path>` | Generate/update project documentation from wiki + memory |
 | `docs <path> --write` | Write the updated doc to the project directory |
 | `docs <path> --target FILE` | Update a specific file (default: README.md) |

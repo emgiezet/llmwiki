@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0](https://github.com/emgiezet/llmwiki/compare/v2.6.1...v2.7.0) (2026-08-28)
+
+
+### Features
+
+* MCP server exposing the wiki to agents ([#23](https://github.com/emgiezet/llmwiki/issues/23)) ([fb0e5a0](https://github.com/emgiezet/llmwiki/commit/fb0e5a02ac4960854784785bed3c305f1c581667))
+* layered knowledge (company / department / project) ([#28](https://github.com/emgiezet/llmwiki/issues/28)) ([650a1d0](https://github.com/emgiezet/llmwiki/commit/650a1d0c59a043a1b5179f57bafebedd7c248428))
+* add Docker, Homebrew, and npx distribution channels ([#32](https://github.com/emgiezet/llmwiki/issues/32)) ([b35de42](https://github.com/emgiezet/llmwiki/commit/b35de425954d379db9b50a50dfc53372573bdd29))
+
+
+### Bug Fixes
+
+* **ci:** let the shell expand the npm test glob ([6e3c06d](https://github.com/emgiezet/llmwiki/commit/6e3c06d7cf1b5559cd516de07a7819049a8c50c4))
+* **release:** skip Homebrew publish when the tap token is absent ([fde88c1](https://github.com/emgiezet/llmwiki/commit/fde88c1639bd294ec38fff4d358654b3ab9ec7c9))
+
 ## [2.6.1](https://github.com/emgiezet/llmwiki/compare/v2.6.0...v2.6.1) (2026-08-11)
 
 

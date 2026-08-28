@@ -15,20 +15,28 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history for gitleaks
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          # Deliberately NOT go-version-file: go.mod. The go directive pins a
+          # full patch release, and stdlib CVEs land against it faster than we
+          # can bump — which turned this weekly scan red for two months over
+          # advisories already fixed upstream. Scanning under the newest release
+          # keeps the gate about our code. The pinned toolchain still gets
+          # checked: ci.yml runs govulncheck against go.mod as a soft warning.
+          go-version: stable
 
       - name: Install tools
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
           go install github.com/securego/gosec/v2/cmd/gosec@latest
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          go install github.com/google/osv-scanner/cmd/osv-scanner@latest
+          # The /v2 suffix matters: @latest on the old path caps out at v1.9.2
+          # (Dec 2024), which is what this job silently ran for 20 months.
+          go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest
           go install github.com/zricethezav/gitleaks/v8@latest
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
 
@@ -46,7 +54,10 @@ jobs:
         run: govulncheck ./...
 
       - name: osv-scanner
-        run: osv-scanner --lockfile=go.mod
+        # v2 ignores the `go` directive by default (it is a minimum language
+        # version, not the build toolchain), so this covers third-party modules
+        # and govulncheck above owns the stdlib. Do not set ScanGoModVersion.
+        run: osv-scanner scan source --lockfile=go.mod
 
       - name: gitleaks
         run: gitleaks detect --source=. --redact --log-opts="--all"
@@ -54,8 +65,8 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - run: go test ./...

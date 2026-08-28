@@ -85,7 +85,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       - name: Test wrapper
         working-directory: npm
-        run: node --test "test/*.test.js"
+        run: node --test test/*.test.js
       - name: Publish to npm (skipped when NPM_TOKEN is unset)
         if: ${{ env.NPM_TOKEN != '' }}
         working-directory: npm

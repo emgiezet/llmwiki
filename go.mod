@@ -3,7 +3,7 @@ module github.com/emgiezet/llmwiki
 go 1.26.7
 
 require (
-	github.com/angelnicolasc/graymatter v0.5.0
+	github.com/angelnicolasc/graymatter v0.18.0
 	github.com/anthropics/anthropic-sdk-go v1.36.0
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/spf13/cobra v1.10.2

@@ -28,9 +28,16 @@ if command -v llmwiki >/dev/null 2>&1; then
 fi
 `
 
+// graymatterInstallHint is what we tell users when the binary is missing. The
+// version is not cosmetic: the hook shells out to this binary while llmwiki
+// links the graymatter library from go.mod, and both write the same gray.db.
+// An older binary drops fact fields it does not know about (tombstones, pins)
+// on write-back, so keep this in step with the go.mod pin.
+const graymatterInstallHint = "go install github.com/angelnicolasc/graymatter/cmd/graymatter@v0.18.0"
+
 const graymatterStopScript = `#!/bin/bash
 # Passive graymatter memory capture on Claude Code Stop event.
-# Installed by: llmwiki init --graymatter
+# Installed by: llmwiki init (disable with --no-graymatter)
 GRAYMATTER_DIR="${GRAYMATTER_HOOK_DIR:-.graymatter}"
 AGENT_ID="claude-code"
 
@@ -222,7 +229,7 @@ func writeProjectConfig(projectDir string, opts initOptions, force bool) error {
 func installIntegrations(abs string, graymatter, preCommit bool) {
 	if graymatter {
 		if !graymatterInstalled() {
-			fmt.Println("  graymatter not found in PATH — skipping (install from https://github.com/gdgvda/graymatter)")
+			fmt.Println("  graymatter not found in PATH — skipping (install with: " + graymatterInstallHint + ")")
 		} else {
 			if err := installGraymatterHook(abs); err != nil {
 				fmt.Fprintf(os.Stderr, "warning: graymatter hook: %v\n", err)
@@ -311,7 +318,7 @@ func runInitWizard(p *wizard.Prompter, existing config.ProjectConfig) (initOptio
 	if graymatterDetected() {
 		inst.graymatter = p.Confirm("Install graymatter hook + MCP?", true)
 	} else {
-		p.Note("graymatter not found in PATH — skipping hook/MCP (install from https://github.com/gdgvda/graymatter)")
+		p.Note("graymatter not found in PATH — skipping hook/MCP (install with: " + graymatterInstallHint + ")")
 	}
 	inst.preCommit = p.Confirm("Install pre-commit freshness hook?", false)
 

@@ -1,5 +1,5 @@
-github.com/angelnicolasc/graymatter v0.5.0 h1:uCeoWcSRkrCFWiGIgw4tWp/9kyh5lOTIucNd6XFrUoI=
-github.com/angelnicolasc/graymatter v0.5.0/go.mod h1:TFD49Czju0PNrOSarCGqWj/putjlAcfRjMjb4p4J5lo=
+github.com/angelnicolasc/graymatter v0.18.0 h1:dTjh0c4CAZjTXTK9DLQf5te6net4JBF/qrV8FwltYqw=
+github.com/angelnicolasc/graymatter v0.18.0/go.mod h1:TFD49Czju0PNrOSarCGqWj/putjlAcfRjMjb4p4J5lo=
 github.com/anthropics/anthropic-sdk-go v1.36.0 h1:3uYMLuIIVuWaOJnm20mv07ji74bEbtj1jdUvr0BY/Ms=
 github.com/anthropics/anthropic-sdk-go v1.36.0/go.mod h1:dSIO7kSrOI7MA4fE6RRVaw8tyWP7HNQU5/H/KS4cax8=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=

@@ -1,6 +1,6 @@
 # Supply Chain Risk Assessment
 
-_Last updated: 2026-08-11 (dependency audit itself dates from 2026-04-22)_
+_Last updated: 2026-08-29 (dependency audit itself dates from 2026-04-22)_
 
 This document summarizes the results of the pre-release dependency / supply chain
 audit for `llmwiki`. It is generated from:
@@ -17,9 +17,17 @@ audit for `llmwiki`. It is generated from:
 | `cyclonedx-gomod` | latest (installed to `$GOPATH/bin`) | SBOM generation |
 | `osv-scanner` | v2, latest (installed to `$GOPATH/bin`) | CVE lookup against OSV.dev |
 | `go-licenses` | v1.6.0 | License classification |
-| Go toolchain | 1.26.5 (module pins `go 1.26.5`) | Build + `go mod graph` |
+| Go toolchain | 1.26.7 (module pins `go 1.26.7`) | Build + `go mod graph` |
 
-SBOM file: `sbom.cdx.json` (~14 KB, 15 components including the root module).
+SBOM file: `sbom.cdx.json` (~20 KB, 22 components including the root module).
+
+The committed SBOM had drifted: it still described 15 components from the
+2026-04-22 audit, so regenerating it here (policy: on every PR that touches
+`go.mod`) picks up seven modules that landed with the MCP server and the update
+checker — `modelcontextprotocol/go-sdk`, `google/jsonschema-go`,
+`yosida95/uritemplate/v3`, `segmentio/asm`, `segmentio/encoding`,
+`golang.org/x/oauth2` and `golang.org/x/mod`. None of them come from graymatter;
+the v0.18.0 bump adds no modules of its own.
 
 ## Direct dependencies
 
@@ -27,9 +35,11 @@ These are the modules explicitly required by `go.mod`.
 
 | Module | Version | License | Purpose | Trust rationale |
 |---|---|---|---|---|
+| `github.com/angelnicolasc/graymatter` | v0.18.0 | MIT | Agent memory substrate (`internal/memory/memory.go`) | Pre-1.0, single-author project. See "pre-1.0 risks" below. |
 | `github.com/spf13/cobra` | v1.10.2 | Apache-2.0 | CLI command framework (`internal/cmd/*`, `main.go`) | De facto standard Go CLI lib; >37k GitHub stars; Kubernetes/Hugo/etc. depend on it. |
 | `github.com/stretchr/testify` | v1.11.1 | MIT | Test assertions (test-only) | Ubiquitous Go testing lib; vendored by the entire ecosystem. |
 | `gopkg.in/yaml.v3` | v3.0.1 | MIT / Apache-2.0 | YAML front matter + config parsing (`internal/wiki`, `internal/config`) | Canonical Go YAML implementation (`go-yaml`), maintained since 2011. |
+| `golang.org/x/mod` | v0.35.0 | BSD-3-Clause | semver comparison in the update checker (`internal/update`) | Google-maintained; same SLA as stdlib. |
 
 ## Critical transitive dependencies
 
@@ -38,14 +48,13 @@ Pulled in indirectly via graymatter / cobra / testify but worth scrutinising.
 | Module | Version | License | Pulled in by | Trust rationale |
 |---|---|---|---|---|
 | `github.com/anthropics/anthropic-sdk-go` | v1.36.0 | MIT | `graymatter` (and our own `internal/llm/claude-api` code path) | Official Anthropic SDK; published by the API vendor itself. |
-| `github.com/angelnicolasc/graymatter` | v0.5.0 | MIT | root (indirect, via tooling) | Pre-1.0, single-author project. See "pre-1.0 risks" below. |
 | `github.com/philippgille/chromem-go` | v0.7.0 | **MPL-2.0** | `graymatter` (memory/embedding store) | Pre-1.0, single-author project. MPL adds license obligations; see below. |
 | `go.etcd.io/bbolt` | v1.3.11 | MIT | `graymatter` (local KV store) | CNCF-adjacent, mature fork of BoltDB. |
 | `github.com/tidwall/gjson`, `sjson`, `match`, `pretty` | v1.18.0 / v1.2.5 / v1.1.1 / v1.2.1 | MIT | `anthropic-sdk-go` (JSON manipulation) | Single author (@tidwall) but widely used, stable for years. |
 | `github.com/spf13/pflag` | v1.0.10 | BSD-3-Clause | `cobra` | Paired with cobra; same trust tier. |
 | `github.com/inconshreveable/mousetrap` | v1.1.0 | Apache-2.0 | `cobra` (Windows-only no-op on Linux) | Tiny, unchanged since 2022. |
 | `github.com/oklog/ulid/v2` | v2.1.0 | Apache-2.0 | `graymatter` (IDs) | Small, well-known, stable since 2019. |
-| `golang.org/x/sync`, `golang.org/x/sys` | v0.16.0 / v0.34.0 | BSD-3-Clause | transitive | Google-maintained; same SLA as stdlib. |
+| `golang.org/x/sync`, `golang.org/x/sys` | v0.16.0 / v0.47.0 | BSD-3-Clause | transitive | Google-maintained; same SLA as stdlib. |
 
 ## Vulnerability scan (OSV)
 
@@ -116,18 +125,31 @@ compatible with our MIT release.
 
 Two dependencies live under the `<1.0` single-maintainer risk class.
 
-### 1. `github.com/angelnicolasc/graymatter@v0.5.0`
+### 1. `github.com/angelnicolasc/graymatter@v0.18.0`
 
 - **Status:** v0.x, single primary author (`angelnicolasc`).
-- **Pulled in because:** provides the agent memory substrate used by the
-  `graymatter` MCP integration; also pulls in `chromem-go` and `bbolt`.
+- **Pulled in because:** provides the agent memory substrate; imported directly
+  by `internal/memory/memory.go`. Also pulls in `chromem-go` and `bbolt`.
 - **Risk:** API churn until 1.0; low bus factor; no published release cadence.
+  The release cadence turned out to be fast rather than absent — v0.5.0 to
+  v0.18.0 landed inside four months.
 - **Decision:** _accept risk, version-pin_. We consume it via `go.mod` exact
-  version (`v0.5.0`) with a pinned `go.sum` hash, which is sufficient to
+  version (`v0.18.0`) with a pinned `go.sum` hash, which is sufficient to
   prevent surprise upgrades. Revisit at v1.0 or if we see unmaintained
   signals (stale issues, abandoned repo).
 - **Fallback if upstream disappears:** the surface we use is small; vendor the
   module under `vendor/` and cut a local fork.
+- **Version skew is a data-integrity risk, not just an API risk.** The library
+  we link and the `graymatter` binary the generated Stop hook shells out to
+  read and write the same `gray.db`. Fields added to the on-disk `Fact` after
+  our pinned version (`superseded_by` v0.10.0, `confidence` v0.12.0, `pinned`
+  v0.14.0) are dropped by an older decoder and then written back, resurrecting
+  retired facts and clearing pins. Keep the pin at or above the binary users
+  are told to install, and re-check the `Fact` struct on every bump.
+- **The CLI is a separate module.** `go install
+  github.com/angelnicolasc/graymatter/cmd/graymatter@vX.Y.Z` resolves the
+  nested `cmd/graymatter` module (tag `cmd/graymatter/vX.Y.Z`), which carries
+  its own `go.mod` and toolchain pin. Its version is not constrained by ours.
 
 ### 2. `github.com/philippgille/chromem-go@v0.7.0`
 

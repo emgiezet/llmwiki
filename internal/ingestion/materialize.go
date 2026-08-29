@@ -3,6 +3,7 @@ package ingestion
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -55,7 +56,9 @@ func MaterializeFromMemory(ctx context.Context, projectName string, cfg config.M
 		return fmt.Errorf("write wiki entry: %w", err)
 	}
 
-	_ = mem.RememberIngestion(ctx, projectName, cfg.Customer, body, tags)
+	if merr := mem.RememberIngestion(ctx, projectName, cfg.Customer, body, tags); merr != nil {
+		fmt.Fprintf(os.Stderr, "warning: memory not updated for %s: %v\n", projectName, merr)
+	}
 
 	relPath, _ := filepath.Rel(cfg.WikiRoot, wikiPath)
 	return wiki.UpsertIndex(filepath.Join(cfg.WikiRoot, "_index.md"), wiki.IndexEntry{

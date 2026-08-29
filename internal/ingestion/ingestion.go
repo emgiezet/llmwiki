@@ -108,8 +108,12 @@ func ingestSingleService(ctx context.Context, projectDir, projectName string, cf
 		}
 	}
 
-	// Store facts from this ingestion.
-	_ = mem.RememberIngestion(ctx, projectName, cfg.Customer, body, tags)
+	// Store facts from this ingestion. Memory is best-effort — a wiki entry
+	// that landed on disk must not be undone because the store was busy — but
+	// a failure is reported, never swallowed.
+	if merr := mem.RememberIngestion(ctx, projectName, cfg.Customer, body, tags); merr != nil {
+		fmt.Fprintf(os.Stderr, "warning: memory not updated for %s: %v\n", projectName, merr)
+	}
 
 	relPath, _ := filepath.Rel(cfg.WikiRoot, wikiPath)
 	return wiki.UpsertIndex(filepath.Join(cfg.WikiRoot, "_index.md"), wiki.IndexEntry{
@@ -164,8 +168,10 @@ func ingestMultiService(ctx context.Context, projectDir, projectName string, ser
 			}
 		}
 
-		// Store facts from this service ingestion.
-		_ = mem.RememberServiceIngestion(ctx, projectName, svc.Name, cfg.Customer, body, tags)
+		// Store facts from this service ingestion (best-effort, see above).
+		if merr := mem.RememberServiceIngestion(ctx, projectName, svc.Name, cfg.Customer, body, tags); merr != nil {
+			fmt.Fprintf(os.Stderr, "warning: memory not updated for %s/%s: %v\n", projectName, svc.Name, merr)
+		}
 	}
 
 	indexPath := filepath.Join(cfg.WikiRoot, TypeToDir(cfg.Type), cfg.Customer, projectName, wiki.IndexFileName(cfg.Customer, projectName))

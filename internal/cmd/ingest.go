@@ -181,9 +181,11 @@ func NewIngestCmd() *cobra.Command {
 					return writeErr
 				}
 
-				// Store facts from this service ingestion.
+				// Store facts from this service ingestion (best-effort).
 				if mem != nil {
-					_ = mem.RememberServiceIngestion(cmd.Context(), projectName, service, cfg.Customer, body, tags)
+					if merr := mem.RememberServiceIngestion(cmd.Context(), projectName, service, cfg.Customer, body, tags); merr != nil {
+						fmt.Fprintf(os.Stderr, "warning: memory not updated for %s/%s: %v\n", projectName, service, merr)
+					}
 				}
 
 				fmt.Fprintf(os.Stderr, "Done. Service wiki updated at %s\n", wikiPath)

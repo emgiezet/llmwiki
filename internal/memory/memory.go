@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -70,6 +71,12 @@ func openStore(cfg config.Merged, dir string) (*Store, error) {
 	gmCfg.EmbeddingMode = graymatter.EmbeddingAuto
 	gmCfg.AsyncConsolidate = true
 	gmCfg.DecayHalfLife = 30 * 24 * time.Hour
+	// Since graymatter v0.18.0 a locked store no longer fails to open: it
+	// degrades to read-only and every write returns ErrStoreReadOnly. That is
+	// the worst outcome here — Healthy() still reports true, so llmwiki would
+	// report a successful ingest while writing nothing. StrictWrite restores
+	// the loud failure the lock-detection branch below already handles.
+	gmCfg.StrictWrite = true
 	if cfg.AnthropicAPIKey != "" {
 		gmCfg.AnthropicAPIKey = cfg.AnthropicAPIKey
 	}
@@ -90,9 +97,20 @@ func openStore(cfg config.Merged, dir string) (*Store, error) {
 	return &Store{mem: mem}, nil
 }
 
-// Enabled returns true if the memory backend is active.
+// Enabled returns true if the memory backend is active and writable.
+//
+// A read-only store is reported as disabled on purpose. StrictWrite should
+// already have turned a held lock into an open error, but graymatter can also
+// hand back a read-only handle when the data dir itself is read-only, and a
+// store that silently swallows every write is worse than no store at all.
 func (s *Store) Enabled() bool {
-	return s != nil && s.mem != nil && s.mem.Healthy()
+	if s == nil || s.mem == nil || !s.mem.Healthy() {
+		return false
+	}
+	if adv := s.mem.Advanced(); adv != nil && adv.IsReadOnly() {
+		return false
+	}
+	return true
 }
 
 // Close releases the underlying graymatter handle. We cap the wait at 3s
@@ -185,27 +203,31 @@ func (s *Store) RememberIngestion(ctx context.Context, projectName, customer, wi
 	}
 
 	agent := projectAgent(projectName)
+	var errs []error
 
 	// Auto-extract atomic facts from the wiki body.
-	_ = s.mem.RememberExtracted(ctx, agent, wikiBody)
+	errs = append(errs, s.mem.RememberExtracted(ctx, agent, wikiBody))
 
 	// Store structured metadata.
 	meta := fmt.Sprintf("Project %s (customer: %s) uses: %s",
 		projectName, customer, strings.Join(tags, ", "))
-	_ = s.mem.Remember(ctx, agent, meta)
+	errs = append(errs, s.mem.Remember(ctx, agent, meta))
 
 	// Also store in customer agent for cross-project recall.
 	if customer != "" {
 		summary := truncate(wikiBody, 500)
-		_ = s.mem.Remember(ctx, customerAgent(customer),
-			fmt.Sprintf("Project %s: %s", projectName, summary))
+		errs = append(errs, s.mem.Remember(ctx, customerAgent(customer),
+			fmt.Sprintf("Project %s: %s", projectName, summary)))
 	}
 
 	// Store in shared namespace for cross-agent query recall.
-	_ = s.mem.RememberShared(ctx, fmt.Sprintf("Project %s (%s): %s",
-		projectName, customer, strings.Join(tags, ", ")))
+	errs = append(errs, s.mem.RememberShared(ctx, fmt.Sprintf("Project %s (%s): %s",
+		projectName, customer, strings.Join(tags, ", "))))
 
-	return nil
+	// Every write is attempted before reporting: a partial ingest is still
+	// worth keeping. The joined error is what makes DrainAbsorbQueue re-queue
+	// a failed entry instead of dropping it.
+	return errors.Join(errs...)
 }
 
 // RememberServiceIngestion stores facts from a completed service ingestion.
@@ -216,13 +238,13 @@ func (s *Store) RememberServiceIngestion(ctx context.Context, projectName, servi
 
 	agent := projectAgent(projectName)
 
-	_ = s.mem.RememberExtracted(ctx, agent, wikiBody)
+	extractErr := s.mem.RememberExtracted(ctx, agent, wikiBody)
 
 	meta := fmt.Sprintf("Service %s in project %s uses: %s",
 		serviceName, projectName, strings.Join(tags, ", "))
-	_ = s.mem.Remember(ctx, agent, meta)
+	rememberErr := s.mem.Remember(ctx, agent, meta)
 
-	return nil
+	return errors.Join(extractErr, rememberErr)
 }
 
 func truncate(s string, max int) string {

@@ -6,7 +6,7 @@ Persistent, compounding memory across ingestion runs — modes, seeding, and the
 
 ## Graymatter integration
 
-`llmwiki init` can wire up [graymatter](https://github.com/gdgvda/graymatter) — a local vector memory store — as a passive layer on top of Claude Code sessions.
+`llmwiki init` can wire up [graymatter](https://github.com/angelnicolasc/graymatter) — a local vector memory store — as a passive layer on top of Claude Code sessions.
 
 After initialisation each Claude Code session automatically saves a compact summary to `.graymatter/` when the session ends (via the `Stop` hook). The graymatter MCP server exposes those memories back to Claude Code, so context from past sessions is available without manual effort. The same Stop hook also runs a non-blocking `llmwiki check` on the files touched during the session and stores any staleness signal in memory, so you find out about drifting docs without going looking for them.
 
@@ -66,7 +66,49 @@ llmwiki materialize my-project   # ~5–15K tokens vs 50–100K for full ingest
 
 ## Lock contention & the absorb queue
 
-If the Stop hook fires while another process holds the memory DB (for example, you have `graymatter tui` open), llmwiki appends the session to a local queue file (`~/.llmwiki/memory/absorb-queue.jsonl` by default). The queue is drained the next time `llmwiki absorb` runs successfully, or explicitly via `llmwiki absorb-drain`.
+bbolt allows a single writer process per store, and llmwiki links the graymatter
+library directly — it opens `gray.db` itself rather than going through the
+graymatter daemon. So whenever another process owns the store, llmwiki has to
+step aside.
+
+The common case is the graymatter CLI. Every `graymatter` command routes through
+a store daemon that keeps running for **two minutes** after the last client
+disconnects, so the Stop hook's own `graymatter remember` call leaves the lock
+held for a couple of minutes afterwards. `graymatter tui` and the MCP server hold
+it for as long as they are open.
+
+When llmwiki cannot take the write lock it logs
+`warning: memory store locked (…) — running without memory` and continues without
+memory rather than failing the command. For session capture it does better than
+that: `llmwiki absorb` appends the session to a queue file in the store directory
+(`{projectDir}/.graymatter/absorb-queue.jsonl` in the default `project` mode,
+`{memory_dir}/absorb-queue.jsonl` in `global` mode). The queue is drained the next
+time `llmwiki absorb` runs successfully, or explicitly via `llmwiki absorb-drain`.
+
+If you see memory writes being queued constantly, check for a daemon:
+
+```bash
+graymatter daemon status --dir .graymatter
+graymatter daemon stop   --dir .graymatter   # then re-run llmwiki absorb-drain
+```
+
+### Keep the CLI and the library on the same version
+
+llmwiki pins the graymatter library in `go.mod`; the Stop hook and `.mcp.json`
+call whatever `graymatter` binary is on your `PATH`. Both read and write the same
+`gray.db`, so a large version gap between them corrupts data rather than just
+failing: fields added to the stored fact format by newer versions (tombstones,
+pins, confidence) are dropped by an older decoder and then written back, which
+resurrects facts you retired and clears pins you set.
+
+Install the binary from the same release line as the pinned library:
+
+```bash
+go install github.com/angelnicolasc/graymatter/cmd/graymatter@v0.18.0
+```
+
+(The CLI is a separate nested module, so its tag is `cmd/graymatter/v0.18.0`
+upstream — `go install` resolves that for you from the version you pass.)
 
 ## Incremental wiki building
 

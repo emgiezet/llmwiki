@@ -36,7 +36,7 @@ Filter semantics for `search_projects` (both filters optional, case-insensitive)
 
 ## Supported AI coding tools
 
-llmwiki supports seven LLM backends and five hook-based session-capture integrations:
+llmwiki supports eight LLM backends and six hook-based session-capture integrations:
 
 | Tool         | Backend (`llm:` value) | Hook install         | Capture mechanism                                      |
 |--------------|------------------------|----------------------|--------------------------------------------------------|
@@ -46,9 +46,12 @@ llmwiki supports seven LLM backends and five hook-based session-capture integrat
 | codex        | `codex`                | ✅ native `notify` TOML | `~/.codex/config.toml` → `notify = ["node", …]`         |
 | opencode     | `opencode`             | ✅ native plugin       | `~/.config/opencode/plugins/llmwiki.ts` (`session.idle`) |
 | pi           | `pi`                   | ✅ native extension    | `~/.pi/agent/extensions/llmwiki.ts` (`agent_end`)       |
+| omp          | `omp`                  | ✅ native extension    | `~/.omp/agent/extensions/llmwiki.ts` (`agent_end`)      |
 | gemini-cli   | `gemini-cli`           | ⚠ wrapper fallback   | Shell function in `~/.bashrc` / `.zshrc` / fish config  |
 
-Hook-based capture is optional — all seven can be used as a plain ingest backend without any hook setup.
+Hook-based capture is optional — all eight can be used as a plain ingest backend without any hook setup.
+
+The `omp` backend pipes the prompt on stdin (no argv size limit) and runs omp with `--no-session --no-tools --no-extensions` plus no skills/rules/context files, so ingest calls stay side-effect-free and use omp's own auth and model config. Pin a model with `omp_model` in the global config.
 
 ## Hook install / uninstall / status
 
@@ -58,6 +61,7 @@ llmwiki hook install claude-code
 llmwiki hook install codex
 llmwiki hook install opencode
 llmwiki hook install pi
+llmwiki hook install omp
 llmwiki hook install gemini-cli     # shell-wrapper fallback; source your rc after
 
 # Install for everything detected
@@ -78,6 +82,7 @@ Each tool's install is idempotent. Uninstall preserves user-authored config (TOM
 - **codex**: top-level `notify = ["node", "~/.llmwiki/hooks/codex-absorb.js"]` in `~/.codex/config.toml`. Codex appends a JSON payload (with `last-assistant-message`, `cwd`) as the final argv on every turn end; the wrapper unpacks it and forwards.
 - **opencode**: TS plugin subscribes to `session.idle`, grabs the last assistant message via `client.session.messages(...)`, pipes it through Bun's `$` shell helper to `llmwiki absorb`.
 - **pi**: TS extension calls `pi.on("agent_end", …)`, which fires once per user prompt after tools complete.
+- **omp**: TS extension (default-exported factory) buffers the last assistant text from `assistant_message` and forwards it on `agent_end`. Installs under `$PI_CODING_AGENT_DIR/extensions/` when that variable is set.
 - **gemini-cli**: no native hook API. The installer writes a shell function wrapper that intercepts `gemini -p "…"` invocations only (interactive TUI passes through unchanged); it tees stdout and pipes to `llmwiki absorb` on success.
 
 ## Hook requirements

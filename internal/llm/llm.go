@@ -12,7 +12,7 @@ type LLM interface {
 
 // Config holds backend selection and credentials.
 type Config struct {
-	Backend           string // "claude-code" | "claude-api" | "ollama" | "gemini-cli" | "codex" | "opencode" | "pi"
+	Backend           string // "claude-code" | "claude-api" | "ollama" | "gemini-cli" | "codex" | "opencode" | "pi" | "omp"
 	OllamaHost        string
 	OllamaModel       string
 	AllowRemoteOllama bool
@@ -20,15 +20,20 @@ type Config struct {
 	// ClaudeBinaryPath overrides the PATH lookup for the 'claude' binary.
 	// Empty (default) = look up 'claude' via PATH.
 	ClaudeBinaryPath string
-	// GeminiBinaryPath, CodexBinaryPath, OpencodeBinaryPath, PiBinaryPath
-	// override PATH lookup for the respective agentic-coder CLIs. Empty =
-	// look up by name. These are passed to the cliBackend helper, which
-	// applies the same 5-min-default-timeout and stderr-tail-redaction
-	// rules as the claude-code subprocess wrapper.
+	// GeminiBinaryPath, CodexBinaryPath, OpencodeBinaryPath, PiBinaryPath,
+	// OmpBinaryPath override PATH lookup for the respective agentic-coder
+	// CLIs. Empty = look up by name. These are passed to the cliBackend
+	// helper, which applies the same 5-min-default-timeout and
+	// stderr-tail-redaction rules as the claude-code subprocess wrapper.
 	GeminiBinaryPath   string
 	CodexBinaryPath    string
 	OpencodeBinaryPath string
 	PiBinaryPath       string
+	OmpBinaryPath      string
+	// OmpModel is passed to omp as --model; empty = omp's configured default.
+	// Accepts fuzzy names ("haiku", "opus") or provider-qualified ones
+	// ("openai/gpt-5.2").
+	OmpModel string
 	// MaxTokens caps the backend's output length. 0 means backend default.
 	// Claude API falls back to 8192 when zero; Ollama passes through when
 	// non-zero; claude-code and the other CLI-subprocess backends do not
@@ -68,8 +73,10 @@ func NewLLM(cfg Config) (LLM, error) {
 		return NewOpencodeLLM(cfg.OpencodeBinaryPath), nil
 	case "pi":
 		return NewPiCLILLM(cfg.PiBinaryPath), nil
+	case "omp":
+		return NewOmpCLILLM(cfg.OmpBinaryPath, cfg.OmpModel), nil
 	default:
-		return nil, fmt.Errorf("unknown LLM backend: %q (valid: claude-code, claude-api, ollama, gemini-cli, codex, opencode, pi)", cfg.Backend)
+		return nil, fmt.Errorf("unknown LLM backend: %q (valid: claude-code, claude-api, ollama, gemini-cli, codex, opencode, pi, omp)", cfg.Backend)
 	}
 }
 

@@ -59,6 +59,8 @@ func NewQueryCmd() *cobra.Command {
 				OllamaHost:        global.OllamaHost,
 				AllowRemoteOllama: global.AllowRemoteOllama,
 				ClaudeBinaryPath:  global.ClaudeBinaryPath,
+				OmpBinaryPath:     global.OmpBinaryPath,
+				OmpModel:          global.OmpModel,
 			})
 			if err != nil {
 				return err

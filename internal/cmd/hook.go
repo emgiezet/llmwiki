@@ -31,6 +31,7 @@ var toolHooks = map[string]toolHook{
 	"opencode":    &opencodeHook{},
 	"pi":          &piHook{},
 	"gemini-cli":  &geminiCLIHook{},
+	"omp":         &ompHook{},
 }
 
 func toolNamesSorted() []string {
@@ -64,7 +65,7 @@ func NewHookCmd() *cobra.Command {
 		Use:   "hook",
 		Short: "Manage session-capture hooks across agentic coding tools",
 		Long: `Installs, uninstalls, and inspects the llmwiki hook for each supported
-agentic coding tool (claude-code, codex, opencode, pi, gemini-cli). Each
+agentic coding tool (claude-code, codex, opencode, pi, gemini-cli, omp). Each
 hook captures end-of-session assistant responses and forwards them to
 'llmwiki absorb' so knowledge accumulates in graymatter memory.`,
 	}

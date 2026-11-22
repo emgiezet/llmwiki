@@ -83,11 +83,13 @@ func runSetupWizard(p *wizard.Prompter, cfg *config.GlobalConfig) bool {
 	p.Note("Detected tools:")
 	p.Note("  claude: %s", toolStatus("claude"))
 	p.Note("  ollama: %s", toolStatus("ollama"))
+	p.Note("  omp: %s", toolStatus("omp"))
 
 	cfg.LLM = p.Choice("LLM backend?", []wizard.Option{
 		{Value: "claude-code", Label: "claude-code (Claude Code subscription)"},
 		{Value: "claude-api", Label: "claude-api (uses ANTHROPIC_API_KEY)"},
 		{Value: "ollama", Label: "ollama (local models)"},
+		{Value: "omp", Label: "omp (oh-my-pi harness; uses omp's own auth)"},
 	}, orDefault(cfg.LLM, "claude-code"))
 
 	switch cfg.LLM {

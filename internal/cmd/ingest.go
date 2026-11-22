@@ -102,6 +102,8 @@ func NewIngestCmd() *cobra.Command {
 				CodexBinaryPath:    cfg.CodexBinaryPath,
 				OpencodeBinaryPath: cfg.OpencodeBinaryPath,
 				PiBinaryPath:       cfg.PiBinaryPath,
+				OmpBinaryPath:      cfg.OmpBinaryPath,
+				OmpModel:           cfg.OmpModel,
 				MaxTokens:          cfg.Extraction.MaxTokens,
 			})
 			if err != nil {

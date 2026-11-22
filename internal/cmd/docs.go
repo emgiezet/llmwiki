@@ -60,6 +60,8 @@ With --write, overwrites the target file in the project directory.`,
 				AllowRemoteOllama: cfg.AllowRemoteOllama,
 				AnthropicAPIKey:   cfg.AnthropicAPIKey,
 				ClaudeBinaryPath:  cfg.ClaudeBinaryPath,
+				OmpBinaryPath:     cfg.OmpBinaryPath,
+				OmpModel:          cfg.OmpModel,
 			})
 			if err != nil {
 				return fmt.Errorf("init LLM: %w", err)

@@ -20,7 +20,7 @@ Drop this in the project root (or let `llmwiki init` create it) to set its type,
 type: client                # client | personal | oss
 customer: acme
 status: discovery           # production | poc | discovery — drives section visibility
-llm: codex                  # claude-code | claude-api | ollama | gemini-cli | codex | opencode | pi
+llm: codex                  # claude-code | claude-api | ollama | gemini-cli | codex | opencode | pi | omp
 ollama_model: llama3.2
 
 # Where generated wiki files land (see "Docs alongside code" above).
@@ -108,6 +108,10 @@ gemini_binary_path: ""
 codex_binary_path: ""
 opencode_binary_path: ""
 pi_binary_path: ""
+omp_binary_path: ""
+# Model for the omp backend (passed as --model); empty = omp's own default.
+# Fuzzy ("haiku", "opus") or provider-qualified ("openai/gpt-5.2").
+omp_model: ""
 
 # Document text extraction (see "Non-technical projects" below). Maps a file
 # extension to a command template; {{input}} is replaced with the file path and

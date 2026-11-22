@@ -56,6 +56,7 @@ func TestNewLLM_Routes_NewBackends(t *testing.T) {
 		{backend: "codex", cfgExtra: func(c *llm.Config) { c.CodexBinaryPath = "/bin/true" }},
 		{backend: "opencode", cfgExtra: func(c *llm.Config) { c.OpencodeBinaryPath = "/bin/true" }},
 		{backend: "pi", cfgExtra: func(c *llm.Config) { c.PiBinaryPath = "/bin/true" }},
+		{backend: "omp", cfgExtra: func(c *llm.Config) { c.OmpBinaryPath = "/bin/true" }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.backend, func(t *testing.T) {
@@ -73,14 +74,14 @@ func TestNewLLM_Routes_NewBackends(t *testing.T) {
 }
 
 // TestNewLLM_UnknownBackendLists_NewBackends makes sure the error message
-// includes all seven valid backend names so users typoing a name see the
+// includes all eight valid backend names so users typoing a name see the
 // full list.
 func TestNewLLM_UnknownBackendLists_NewBackends(t *testing.T) {
 	_, err := llm.NewLLM(llm.Config{Backend: "typoed"})
 	if err == nil {
 		t.Fatal("expected error for unknown backend")
 	}
-	for _, expected := range []string{"claude-code", "claude-api", "ollama", "gemini-cli", "codex", "opencode", "pi"} {
+	for _, expected := range []string{"claude-code", "claude-api", "ollama", "gemini-cli", "codex", "opencode", "pi", "omp"} {
 		if !strings.Contains(err.Error(), expected) {
 			t.Errorf("error message should list %q among valid backends, got: %v", expected, err)
 		}

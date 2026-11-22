@@ -122,7 +122,7 @@ func TestHookStatus_ListsAllToolsWithState(t *testing.T) {
 
 	out := buf.String()
 	// Every registered tool should appear in the table.
-	for _, name := range []string{"claude-code", "codex", "opencode", "pi", "gemini-cli"} {
+	for _, name := range []string{"claude-code", "codex", "opencode", "pi", "gemini-cli", "omp"} {
 		assert.Contains(t, out, name, "status output must mention %q", name)
 	}
 	assert.Contains(t, out, "yes", "at least one tool should be reported installed (claude-code)")
@@ -137,8 +137,8 @@ func TestHookInstall_UnknownToolErrorsWithValidList(t *testing.T) {
 	err := root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown tool")
-	// The error must list the five valid tool names so users can recover.
-	for _, valid := range []string{"claude-code", "codex", "opencode", "pi", "gemini-cli"} {
+	// The error must list the six valid tool names so users can recover.
+	for _, valid := range []string{"claude-code", "codex", "opencode", "pi", "gemini-cli", "omp"} {
 		assert.Contains(t, err.Error(), valid, "error must list %q as a valid tool", valid)
 	}
 }

@@ -42,6 +42,10 @@ type GlobalConfig struct {
 	CodexBinaryPath    string `yaml:"codex_binary_path"`
 	OpencodeBinaryPath string `yaml:"opencode_binary_path"`
 	PiBinaryPath       string `yaml:"pi_binary_path"`
+	OmpBinaryPath      string `yaml:"omp_binary_path"`
+	// OmpModel pins the model omp uses (passed as --model); empty = omp's
+	// own configured default.
+	OmpModel string `yaml:"omp_model"`
 	// Extractors maps a document file extension (".pdf", ".docx", …) to the
 	// command template used to extract its plain text, e.g.
 	// "pdftotext {{input}} -". The {{input}} placeholder is replaced with the
@@ -160,6 +164,8 @@ type Merged struct {
 	CodexBinaryPath    string
 	OpencodeBinaryPath string
 	PiBinaryPath       string
+	OmpBinaryPath      string
+	OmpModel           string
 	// Extractors maps a document extension to its text-extraction command
 	// template (global defaults + per-project overrides, merged key-by-key).
 	Extractors map[string]string

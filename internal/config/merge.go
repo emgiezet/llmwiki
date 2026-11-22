@@ -43,6 +43,8 @@ func Merge(g GlobalConfig, c ClientConfig, p ProjectConfig) Merged {
 		CodexBinaryPath:    g.CodexBinaryPath,
 		OpencodeBinaryPath: g.OpencodeBinaryPath,
 		PiBinaryPath:       g.PiBinaryPath,
+		OmpBinaryPath:      g.OmpBinaryPath,
+		OmpModel:           g.OmpModel,
 
 		// Project-only fields.
 		Customer:    p.Customer,
